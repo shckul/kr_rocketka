@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>KR ROCKET - MULTIPLAYER ELITE</title>
-    <!-- ИСПРАВЛЕНО: Правильное подключение для Render -->
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --acid: #ccff00; --bg: #000; --panel: #0a0a0a; --border: #1a1a1a; }
@@ -99,7 +98,6 @@
     let balance = 1000.00, state = 'WAIT', multiplier = 1.00, startTime = 0, currentTab = 'bets', myNick = "Player_" + Math.floor(Math.random()*999);
     let stars = [], timerInterval;
 
-    // --- ЛОГИКА СОКЕТОВ ---
     function updateNick() {
         const newNick = document.getElementById('nick').value || myNick;
         socket.emit('join', { name: newNick });
@@ -137,9 +135,8 @@
             multiplier = 1.00;
             multDisp.style.display = 'none';
             multDisp.innerText = "1.00x";
-            multDisp.style.color = "var(--acid)";
             timerDisp.style.display = 'block';
-            startLocalTimer(); 
+            startLocalTimer();
             actionBtn.innerText = "ПОСТАВИТЬ";
             actionBtn.disabled = false;
             actionBtn.style.background = "var(--acid)";
@@ -153,7 +150,7 @@
                 actionBtn.innerText = "ЗАБРАТЬ";
                 actionBtn.disabled = false;
                 actionBtn.style.background = "#ffaa00";
-            } else { actionBtn.disabled = true; actionBtn.style.background = "#111"; }
+            }
         }
         if(state === 'CRASH') {
             clearInterval(timerInterval);
@@ -169,8 +166,10 @@
     });
 
     socket.on('tick', (data) => { 
-        multiplier = parseFloat(data.multiplier);
-        if(state === 'FLY') multDisp.innerText = multiplier.toFixed(2) + "x"; 
+        if(state === 'FLY') {
+            multiplier = parseFloat(data.multiplier);
+            multDisp.innerText = multiplier.toFixed(2) + "x"; 
+        }
     });
 
     socket.on('playerAction', (data) => {
@@ -193,24 +192,23 @@
         }
     });
 
-    // --- ПОЛНАЯ АНИМАЦИЯ ---
-    function initStars() {
-        stars = [];
-        for(let i=0; i<60; i++) stars.push({ x: Math.random()*bgCanvas.width, y: Math.random()*bgCanvas.height, s: Math.random()*1.5 + 0.5, c: '#fff' });
-    }
-
     function drawRocket(ctx, x, y, p) {
         ctx.save();
         ctx.translate(x, y + Math.sin(Date.now() / 250) * 8);
         ctx.rotate(-Math.PI / 8 * p); 
-        // Пламя
+        // ОРИГИНАЛЬНОЕ ПЛАМЯ
         ctx.fillStyle = '#ccff00'; ctx.globalAlpha = 0.4 + Math.random()*0.3;
-        ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-35 - Math.random()*20, 7.5); ctx.lineTo(-10, 15); ctx.fill();
-        // Корпус
-        ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.fillRect(0,0,35,15);
-        // Нос
-        ctx.fillStyle = '#ccff00'; ctx.beginPath(); ctx.moveTo(35,0); ctx.lineTo(55,7.5); ctx.lineTo(35,15); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-30 - Math.random()*20, 5); ctx.lineTo(-10, 10); ctx.fill();
+        // ОРИГИНАЛЬНЫЙ КОРПУС
+        ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.fillRect(0,0,30,15);
+        // ОРИГИНАЛЬНЫЙ ОСТРЫЙ НОС
+        ctx.fillStyle = '#ccff00'; ctx.beginPath(); ctx.moveTo(30,0); ctx.lineTo(45,7.5); ctx.lineTo(30,15); ctx.fill();
         ctx.restore();
+    }
+
+    function initStars() {
+        stars = [];
+        for(let i=0; i<60; i++) stars.push({ x: Math.random()*bgCanvas.width, y: Math.random()*bgCanvas.height, s: Math.random()*1.5 + 0.5, c: '#fff' });
     }
 
     function loop() {
@@ -235,26 +233,15 @@
     window.addEventListener('resize', resize);
     setTimeout(() => { resize(); loop(); }, 100);
 
-    function switchTab(t) {
-        currentTab = t;
-        document.getElementById('tab-bets').className = 'tab' + (t==='bets'?' active':'');
-        document.getElementById('tab-chat').className = 'tab' + (t==='chat'?' active':'');
-        // Логика отображения контента вкладок (если нужно добавить чат)
-    }
-
     function toggleModal() {
         const m = document.getElementById('modal');
-        if (m.style.display === 'flex') {
-            m.style.display = 'none';
-            updateNick();
-        } else {
-            m.style.display = 'flex';
-        }
+        if (m.style.display === 'flex') { m.style.display = 'none'; updateNick(); }
+        else { m.style.display = 'flex'; }
     }
-
-    function deposit() {
-        balance += 1000;
-        balDisp.innerText = balance.toFixed(2);
+    function deposit() { balance += 1000; balDisp.innerText = balance.toFixed(2); }
+    function switchTab(t) {
+        document.getElementById('tab-bets').className = 'tab' + (t==='bets'?' active':'');
+        document.getElementById('tab-chat').className = 'tab' + (t==='chat'?' active':'');
     }
 </script>
 </body>
