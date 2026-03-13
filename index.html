@@ -2,194 +2,226 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KR ROCKET - MULTIPLAYER ELITE</title>
-    <script src="/socket.io/socket.io.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rocket Crash Game</title>
+    <script src="https://cdn.socket.io"></script>
     <style>
-        :root { --acid: #ccff00; --bg: #000; --panel: #0a0a0a; --border: #1a1a1a; }
-        body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid var(--border); height: 50px; background: #050505; }
-        .logo { color: var(--acid); font-weight: 900; font-size: 1rem; }
-        .history-top { display: flex; gap: 8px; padding: 8px 15px; overflow-x: auto; background: #000; border-bottom: 1px solid var(--border); height: 35px; align-items: center; scrollbar-width: none; }
-        .h-badge { padding: 2px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; border: 1px solid var(--acid); flex-shrink: 0; color: var(--acid); background: rgba(204, 255, 0, 0.05); }
-        .game-viewport { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px; }
-        .game-window { width: 100%; max-width: 380px; aspect-ratio: 16/10; background: #000; border: 2px solid var(--border); border-radius: 12px; position: relative; overflow: hidden; margin-bottom: 5px; }
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        #mult-display { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 3.5rem; font-weight: 900; color: var(--acid); display: none; z-index: 10; text-shadow: 0 0 20px var(--acid); }
-        #timer-display { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 3.5rem; color: #fff; font-weight: bold; z-index: 10; }
-        .list-box { width: 100%; max-width: 380px; background: var(--panel); border-radius: 10px; border: 1px solid var(--border); height: 115px; overflow-y: auto; margin-bottom: 10px; }
-        .row { display: flex; justify-content: space-between; padding: 8px 15px; border-bottom: 1px solid #111; font-size: 0.8rem; }
-        .is-me { border-left: 3px solid var(--acid); background: rgba(204, 255, 0, 0.1); }
-        input { width: 100%; background: #000; border: 1px solid var(--border); color: var(--acid); padding: 12px; border-radius: 10px; outline: none; text-align: center; font-weight: bold; font-size: 1rem; margin-bottom: 10px; }
-        #action-btn { width: 100%; background: var(--acid); color: #000; border: none; padding: 18px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; cursor: pointer; }
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; align-items: center; justify-content: center; }
-        .modal-content { background: var(--panel); border: 1px solid var(--acid); padding: 25px; border-radius: 20px; width: 280px; text-align: center; }
+        :root {
+            --bg-color: #0b0e11;
+            --card-bg: #1e2329;
+            --primary: #f0b90b;
+            --success: #02c076;
+            --danger: #cf304a;
+            --text: #eaecef;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .game-container {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        /* Область графика */
+        .canvas-wrapper {
+            position: relative;
+            background: #161a1e;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #2b3139;
+            overflow: hidden;
+        }
+
+        canvas {
+            width: 100%;
+            height: 250px;
+            display: block;
+        }
+
+        #multiplier {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-shadow: 0 0 20px rgba(240, 185, 11, 0.4);
+            z-index: 10;
+        }
+
+        /* Стили кнопок и инпутов */
+        input {
+            background: #2b3139;
+            border: 1px solid #474d57;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+
+        /* Состояния кнопки */
+        .btn-bet { background-color: var(--primary); color: #000; }
+        .btn-bet:hover { background-color: #fcd435; }
+        
+        .btn-cashout { background-color: var(--success); color: #fff; }
+        .btn-cashout:hover { background-color: #03d684; transform: scale(1.02); }
+
+        .btn-disabled { background-color: #474d57 !important; color: #848e9c !important; cursor: not-allowed; }
+
+        #message {
+            margin-top: 15px;
+            font-weight: 500;
+            min-height: 1.2em;
+        }
     </style>
 </head>
 <body>
 
-<header>
-    <div style="font-size:1.2rem; color:var(--acid)">💰</div>
-    <div class="logo">🚀 KR ROCKET LIVE</div>
-    <div id="bal-val" style="color:var(--acid); font-weight:bold; cursor:pointer" onclick="toggleModal()">1000.00</div>
-</header>
-
-<div class="history-top" id="history-list"></div>
-
-<div class="game-viewport">
-    <div class="game-window">
-        <canvas id="game-canvas"></canvas>
-        <div id="mult-display">1.00x</div>
-        <div id="timer-display">5.00</div>
+<div class="game-container">
+    <div class="canvas-wrapper">
+        <canvas id="crashCanvas"></canvas>
+        <div id="multiplier">1.00x</div>
     </div>
-    <div class="list-box" id="list-content"></div>
-    <div class="controls" style="width:100%; max-width:380px;">
-        <input type="number" id="bet" value="10">
-        <button id="action-btn">ПОСТАВИТЬ</button>
-    </div>
-</div>
 
-<div id="modal" class="modal">
-    <div class="modal-content">
-        <h3 style="color:var(--acid)">PROFILE</h3>
-        <input type="text" id="nick" value="Zxcursed">
-        <button onclick="deposit()" style="width:100%; background:var(--acid); border:none; padding:12px; border-radius:8px; font-weight:bold;">+1000$</button>
-        <button onclick="toggleModal()" style="color:#555; background:none; border:none; margin-top:15px;">ЗАКРЫТЬ</button>
-    </div>
+    <input type="number" id="betAmount" placeholder="Сумма ставки" min="1">
+    <button id="actionBtn" class="btn-bet">Сделать ставку</button>
+    <p id="message"></p>
 </div>
 
 <script>
     const socket = io();
-    const gameCanvas = document.getElementById('game-canvas'), gameCtx = gameCanvas.getContext('2d');
-    const multDisp = document.getElementById('mult-display'), timerDisp = document.getElementById('timer-display');
-    const actionBtn = document.getElementById('action-btn'), balDisp = document.getElementById('bal-val');
-    const listContent = document.getElementById('list-content'), histList = document.getElementById('history-list');
+    const canvas = document.getElementById('crashCanvas');
+    const ctx = canvas.getContext('2d');
+    const actionBtn = document.getElementById('actionBtn');
+    const multiplierDisplay = document.getElementById('multiplier');
+    const message = document.getElementById('message');
+    const betInput = document.getElementById('betAmount');
 
-    let balance = 1000.00, state = 'WAIT', multiplier = 1.00, timerInterval, myNick = "Zxcursed";
+    let isWaiting = true; 
+    let hasBet = false;
+    let currentMultiplier = 1.0;
 
-    function updateNick() {
-        myNick = document.getElementById('nick').value || "Player";
-        socket.emit('join', { name: myNick });
+    // Настройка размеров Canvas
+    function resizeCanvas() {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Функция отрисовки графика
+    function drawGraph(mult) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (isWaiting) return;
+
+        ctx.strokeStyle = '#f0b90b';
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "rgba(240, 185, 11, 0.5)";
+        
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height);
+
+        // Рассчитываем конечную точку
+        let progress = Math.min((mult - 1) / 5, 1); // Масштабируем до x6
+        let targetX = progress * canvas.width;
+        let targetY = canvas.height - (Math.pow(progress, 2) * (canvas.height - 50));
+
+        // Рисуем кривую Безье
+        ctx.quadraticCurveTo(targetX / 2, canvas.height, targetX, targetY);
+        ctx.stroke();
+
+        // Рисуем ракету (точку)
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(targetX, targetY, 6, 0, Math.PI * 2);
+        ctx.fill();
     }
 
-    socket.on('connect', () => { updateNick(); });
+    socket.on('multiplierUpdate', (data) => {
+        isWaiting = false;
+        currentMultiplier = data.multiplier;
+        multiplierDisplay.innerText = currentMultiplier.toFixed(2) + 'x';
+        multiplierDisplay.style.color = "var(--primary)";
+        drawGraph(currentMultiplier);
 
-    function startLocalTimer() {
-        clearInterval(timerInterval);
-        let left = 5.00;
-        timerInterval = setInterval(() => {
-            left -= 0.01;
-            if(left <= 0) { clearInterval(timerInterval); timerDisp.innerText = "0.00"; }
-            else { timerDisp.innerText = left.toFixed(2); }
-        }, 10);
-    }
+        if (hasBet) {
+            actionBtn.innerText = `Забрать ${(betInput.value * currentMultiplier).toFixed(2)}`;
+            actionBtn.className = 'btn-cashout';
+        }
+    });
+
+    socket.on('gameCrash', (data) => {
+        isWaiting = true;
+        multiplierDisplay.innerText = 'BOOM!';
+        multiplierDisplay.style.color = "var(--danger)";
+        
+        actionBtn.innerText = 'Сделать ставку';
+        actionBtn.className = 'btn-bet';
+        hasBet = false;
+        
+        // Очистка графика через секунду
+        setTimeout(() => {
+            if(isWaiting) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }, 1000);
+    });
 
     actionBtn.onclick = () => {
-        if(state === 'WAIT') {
-            const b = parseFloat(document.getElementById('bet').value);
-            if(balance >= b) {
-                balance -= b; balDisp.innerText = balance.toFixed(2);
-                socket.emit('placeBet', { bet: b });
-                actionBtn.innerText = "ГОТОВО"; actionBtn.disabled = true; actionBtn.style.background = "#333";
-            }
-        } else if(state === 'FLY') {
-            socket.emit('cashOut');
-            actionBtn.disabled = true; actionBtn.style.background = "#111";
+        if (!hasBet) {
+            const amount = parseFloat(betInput.value);
+            if (isNaN(amount) || amount <= 0) return alert('Введите ставку');
+            
+            socket.emit('placeBet', { amount });
+            hasBet = true;
+            actionBtn.innerText = 'Ожидание...';
+            actionBtn.className = 'btn-disabled';
+            message.innerText = 'Ставка принята!';
+        } else {
+            socket.emit('cashout');
+            hasBet = false;
+            actionBtn.innerText = 'Сделать ставку';
+            actionBtn.className = 'btn-bet';
         }
     };
 
-    socket.on('gameState', (data) => {
-        state = data.state;
-        if(state === 'WAIT') {
-            multiplier = 1.00;
-            multDisp.style.display = 'none'; multDisp.innerText = "1.00x";
-            timerDisp.style.display = 'block';
-            startLocalTimer();
-            actionBtn.innerText = "ПОСТАВИТЬ"; actionBtn.disabled = false; actionBtn.style.background = "var(--acid)";
-            listContent.innerHTML = '';
-        }
-        if(state === 'FLY') {
-            clearInterval(timerInterval);
-            timerDisp.style.display = 'none';
-            multDisp.style.display = 'block';
-            if(actionBtn.innerText === "ГОТОВО") {
-                actionBtn.innerText = "ЗАБРАТЬ"; actionBtn.disabled = false; actionBtn.style.background = "#ffaa00";
-            }
-        }
-        if(state === 'CRASH') {
-            multDisp.innerText = "BOOM! " + data.multiplier + "x";
-            multDisp.style.color = "#ff3300";
-            histList.innerHTML = '';
-            data.history.forEach(h => {
-                const b = document.createElement('div'); b.className = 'h-badge'; b.innerText = h + 'x';
-                histList.prepend(b);
-            });
-        }
+    socket.on('cashoutSuccess', (data) => {
+        message.innerText = `Вы выиграли: ${data.winAmount.toFixed(2)}!`;
+        hasBet = false;
+        actionBtn.className = 'btn-disabled';
+        actionBtn.innerText = 'Успех!';
     });
-
-    socket.on('tick', (data) => { 
-        if(state === 'FLY') {
-            multiplier = parseFloat(data.multiplier);
-            multDisp.innerText = multiplier.toFixed(2) + "x";
-        }
-    });
-
-    socket.on('playerAction', (data) => {
-        if(data.type === 'bet') {
-            const r = document.createElement('div'); r.className = 'row' + (data.name === myNick ? ' is-me' : '');
-            r.id = 'p-' + data.name;
-            r.innerHTML = `<span>${data.name}</span> <span class="v">${data.bet}$</span>`;
-            listContent.prepend(r);
-        } else if(data.type === 'cashout') {
-            const row = document.getElementById('p-' + data.name);
-            if(row) {
-                row.querySelector('.v').innerHTML = `<span style="color:var(--acid)">${data.mult}x</span>`;
-                if(data.name === myNick) {
-                    balance += parseFloat(document.getElementById('bet').value) * parseFloat(data.mult);
-                    balDisp.innerText = balance.toFixed(2);
-                    actionBtn.innerText = "WIN!";
-                }
-            }
-        }
-    });
-
-    function loop() {
-        gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-        if(state === 'FLY' || state === 'CRASH') {
-            gameCtx.beginPath();
-            gameCtx.strokeStyle = state === 'CRASH' ? '#ff3300' : '#ccff00';
-            gameCtx.lineWidth = 4;
-            gameCtx.moveTo(0, gameCanvas.height);
-            
-            // Плавная кривая подъема
-            let progress = Math.min((multiplier - 1) / 5, 1);
-            let targetX = progress * gameCanvas.width;
-            let targetY = gameCanvas.height - (progress * gameCanvas.height * 0.8);
-            
-            gameCtx.quadraticCurveTo(targetX / 2, gameCanvas.height, targetX, targetY);
-            gameCtx.stroke();
-            
-            // Точка в конце линии
-            gameCtx.fillStyle = gameCtx.strokeStyle;
-            gameCtx.beginPath();
-            gameCtx.arc(targetX, targetY, 6, 0, Math.PI * 2);
-            gameCtx.fill();
-        }
-        requestAnimationFrame(loop);
-    }
-
-    function resize() {
-        gameCanvas.width = gameCanvas.offsetWidth;
-        gameCanvas.height = gameCanvas.offsetHeight;
-    }
-    window.onresize = resize; resize(); loop();
-
-    function toggleModal() {
-        const m = document.getElementById('modal');
-        if(m.style.display === 'flex') { m.style.display = 'none'; updateNick(); }
-        else { m.style.display = 'flex'; }
-    }
-    function deposit() { balance += 1000; balDisp.innerText = balance.toFixed(2); }
 </script>
+
 </body>
 </html>
