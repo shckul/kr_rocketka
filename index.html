@@ -3,75 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rocket X Mini</title>
+    <title>TON Rocket Clone</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root { --bg: #000; --card: #111; --acc: #00ff41; --txt: #eee; }
-        /* Используем dvh для мобильных браузеров */
-        body { font-family: sans-serif; background: var(--bg); color: var(--txt); margin: 0; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+        :root { --bg: #000; --card: #121212; --accent: #c4ff00; --txt: #fff; --dim: #888; --panel: #1a1a1a; }
         
-        header { display: flex; justify-content: space-between; padding: 10px; background: var(--card); font-size: 14px; border-bottom: 1px solid #222; }
-        .bal { color: var(--acc); font-weight: bold; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--txt); margin: 0; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+        
+        /* Верхняя панель пользователя */
+        header { display: flex; justify-content: space-between; padding: 10px 15px; align-items: center; background: var(--bg); }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .avatar { width: 35px; height: 35px; background: #222; border-radius: 50%; border: 1px solid var(--accent); }
+        .wallet { background: var(--card); padding: 5px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-weight: bold; border: 1px solid #222; }
+        .plus-btn { background: var(--accent); color: #000; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
 
-        /* Сокращаем высоту игрового поля, чтобы влезли кнопки */
-        .vp { position: relative; height: 55%; background: #000; overflow: hidden; border-bottom: 1px solid #111; }
+        /* Игровое окно как на скрине */
+        .game-window { margin: 10px; flex: 1; position: relative; background: #080808; border-radius: 24px; border: 1px solid #1a1a1a; overflow: hidden; box-shadow: inset 0 0 40px rgba(196, 255, 0, 0.05); }
         canvas { width: 100%; height: 100%; }
-        #mult { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 3.5rem; font-weight: 900; z-index: 10; }
-        
-        /* История теперь очень маленькая */
-        .h-list { display: flex; gap: 4px; padding: 4px 10px; background: #050505; overflow-x: auto; min-height: 18px; }
-        .h-item { font-size: 9px; padding: 2px 5px; background: #1a1a1a; border-radius: 3px; color: #888; }
+        .multiplier-overlay { position: absolute; top: 50%; left: 15%; transform: translateY(-50%); font-size: 3.5rem; font-weight: 900; color: var(--accent); z-index: 10; text-shadow: 0 0 20px rgba(196, 255, 0, 0.3); }
+
+        /* История (Плашки под графиком) */
+        .history-row { display: flex; gap: 8px; padding: 0 15px 10px; overflow-x: auto; }
+        .h-tag { padding: 8px 16px; border-radius: 12px; background: var(--card); font-size: 14px; font-weight: bold; color: var(--dim); border: 1px solid #1a1a1a; min-width: 60px; text-align: center; }
+        .h-tag.active { background: var(--accent); color: #000; }
+
+        /* Главная кнопка ставки */
+        .bet-container { padding: 0 15px 15px; }
+        .main-bet-btn { width: 100%; padding: 18px; border-radius: 16px; border: none; background: var(--accent); color: #000; font-weight: 900; font-size: 18px; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 15px rgba(196, 255, 0, 0.2); }
+        .main-bet-btn:disabled { background: #222; color: #555; box-shadow: none; }
 
         /* Список игроков */
-        .p-box { flex: 1; overflow-y: auto; font-size: 11px; padding: 5px 12px; background: #080808; }
-        .p-row { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid #151515; }
+        .players-scroll { flex: 1.2; overflow-y: auto; padding: 0 15px; display: flex; flex-direction: column; gap: 12px; }
+        .player-item { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .p-left { display: flex; align-items: center; gap: 10px; }
+        .p-avatar { width: 32px; height: 32px; background: #1a1a1a; border-radius: 50%; }
+        .p-nick { font-weight: 600; }
+        .p-bet-info { font-size: 12px; color: var(--dim); }
+        .p-win-amount { font-weight: bold; color: #0088ff; display: flex; align-items: center; gap: 4px; }
 
-        /* ФИКС: Кнопки теперь максимально компактные */
-        .ctrls { background: var(--card); padding: 8px; border-top: 1px solid #222; display: flex; flex-direction: column; gap: 6px; }
-        .in-row { display: flex; gap: 6px; }
-        input { background: #000; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 6px; font-size: 14px; width: 30%; }
-        .go-btn { flex: 1; padding: 10px; border-radius: 6px; border: none; font-weight: bold; font-size: 14px; background: var(--acc); color: #000; text-transform: uppercase; }
-        .go-btn:disabled { background: #333; color: #666; }
+        /* Нижнее меню */
+        nav { display: flex; justify-content: space-around; background: var(--card); padding: 10px 0 20px; border-top: 1px solid #1a1a1a; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--dim); font-size: 10px; text-decoration: none; }
+        .nav-item.active { color: var(--accent); }
+        .nav-icon { font-size: 20px; }
     </style>
 </head>
 <body>
 
 <header>
-    <div onclick="toggleM('p')">👤 <span id="n-disp">Pilot</span></div>
-    <div onclick="toggleM('s')">⚙️</div>
-    <div class="bal"><span id="b-val">1000</span> ₽</div>
+    <div class="user-info">
+        <div class="avatar"></div>
+        <span id="my-nick" style="font-weight:bold">ramazqq</span>
+    </div>
+    <div class="wallet">
+        <span style="color:#0088ff">💎</span> <span id="balance">0.00</span>
+        <div class="plus-btn">+</div>
+    </div>
 </header>
 
-<div id="h-box" class="h-list"></div>
-
-<div class="vp">
+<div class="game-window">
     <canvas id="c"></canvas>
-    <div id="mult">1.00x</div>
+    <div class="multiplier-overlay" id="mult">x1.00</div>
 </div>
 
-<div class="p-box" id="p-list"></div>
-
-<div class="ctrls">
-    <div class="in-row">
-        <input type="number" id="i-bet" value="100">
-        <input type="number" id="i-auto" placeholder="Авто X">
-        <button id="btn" class="go-btn">СТАВКА</button>
-    </div>
+<div class="history-row" id="h-row">
+    <div class="h-tag active">Waiting</div>
+    <!-- Сюда упадут кэфы -->
 </div>
 
-<!-- Модалки (оставлены без изменений) -->
-<div style="display:none" id="ov" onclick="toggleM()" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:90"></div>
+<div class="bet-container">
+    <button class="main-bet-btn" id="btn">Waiting for bets</button>
+</div>
+
+<div class="players-scroll" id="p-list">
+    <!-- Список игроков -->
+</div>
+
+<nav>
+    <a href="#" class="nav-item"><span class="nav-icon">🎮</span>Games</a>
+    <a href="#" class="nav-item"><span class="nav-icon">💼</span>Staking</a>
+    <a href="#" class="nav-item active"><span class="nav-icon">🚀</span>Crash</a>
+    <a href="#" class="nav-item"><span class="nav-icon">👥</span>Referrals</a>
+    <a href="#" class="nav-item"><span class="nav-icon">👤</span>Profile</a>
+</nav>
 
 <script>
     const socket = io();
     const canv = document.getElementById('c'), ctx = canv.getContext('2d');
-    const bBtn = document.getElementById('btn'), mVal = document.getElementById('mult');
+    const bBtn = document.getElementById('btn'), mDisp = document.getElementById('mult');
     
-    let st = 'WAIT', mult = 1.00, bal = 1000.0, nick = localStorage.getItem('n') || "User"+Math.floor(Math.random()*99);
+    let st = 'WAIT', mult = 1.00, bal = 0.00, nick = localStorage.getItem('n') || "User_" + Math.floor(Math.random()*999);
     let stars = [], trail = [];
 
-    document.getElementById('b-val').innerText = bal.toFixed(0);
-    document.getElementById('n-disp').innerText = nick;
+    document.getElementById('my-nick').innerText = nick;
     socket.emit('join', { name: nick });
 
     function res() { 
@@ -83,58 +107,68 @@
     function draw(m) {
         ctx.clearRect(0,0,canv.width, canv.height);
         // Сетка
-        ctx.strokeStyle = '#111'; ctx.lineWidth = 0.5;
+        ctx.strokeStyle = 'rgba(196, 255, 0, 0.03)'; ctx.lineWidth = 0.5;
         for(let i=0; i<canv.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canv.height); ctx.stroke(); }
-        for(let i=0; i<canv.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canv.width,i); ctx.stroke(); }
+        for(let i=0; i<canv.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
         
         stars.forEach(s => {
             s.y += (st === 'FLY' ? m*0.5 : 0.2); if(s.y > canv.height) s.y = 0;
-            ctx.fillStyle = '#333'; ctx.fillRect(s.x, s.y, s.s, s.s);
+            ctx.fillStyle = '#222'; ctx.fillRect(s.x, s.y, s.s, s.s);
         });
 
         if(st === 'FLY') {
             let p = Math.min((m - 1) / 5, 1);
-            let x = 30 + p * (canv.width - 60), y = canv.height - 30 - p * (canv.height - 60);
-            ctx.fillStyle = '#00ff41'; ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill();
+            let x = 60 + p * (canv.width - 120), y = canv.height - 60 - p * (canv.height - 120);
+            
+            // Линия взлета
+            ctx.strokeStyle = var(--accent); ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(40, canv.height - 40);
+            ctx.quadraticCurveTo(canv.width/2, canv.height-40, x, y); ctx.stroke();
+            
+            // Ракета (Эмодзи как на скрине)
+            ctx.font = '50px Arial';
+            ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI/4 * p);
+            ctx.fillText('🚀', -25, 25); ctx.restore();
         }
     }
 
     socket.on('gameState', (d) => {
         st = d.state;
         if(st === 'WAIT') {
-            mult = 1.0; mVal.innerText = '1.00x'; mVal.style.color = '#fff';
-            bBtn.innerText = 'СТАВКА'; bBtn.disabled = false; bBtn.style.background = '#00ff41';
+            mult = 1.0; mDisp.innerText = 'x1.00'; mDisp.style.color = 'var(--accent)';
+            bBtn.innerText = 'Waiting for bets'; bBtn.disabled = false; bBtn.style.background = 'var(--accent)';
+            document.getElementById('p-list').innerHTML = '';
         }
         if(st === 'CRASH') {
-            mVal.innerText = 'BOOM!'; mVal.style.color = '#ff3e3e';
-            bBtn.disabled = true; bBtn.style.background = '#333';
-            if(d.history) document.getElementById('h-box').innerHTML = d.history.slice(0,10).map(v => `<div class="h-item">${v}x</div>`).join('');
+            mDisp.innerText = 'CRASH!'; mDisp.style.color = '#ff3e3e';
+            bBtn.disabled = true; bBtn.style.background = '#222'; bBtn.innerText = 'Crashed at ' + d.multiplier + 'x';
+            if(d.history) {
+                document.getElementById('h-row').innerHTML = '<div class="h-tag active">Waiting</div>' + 
+                d.history.slice(0,5).map(v => `<div class="h-tag">${v}x</div>`).join('');
+            }
         }
     });
 
     socket.on('tick', (d) => {
         if(d.multiplier && st === 'FLY') {
             mult = parseFloat(d.multiplier);
-            mVal.innerText = mult.toFixed(2) + 'x';
+            mDisp.innerText = 'x' + mult.toFixed(2);
             draw(mult);
-            if(bBtn.innerText === 'ОЖИДАНИЕ') {
-                bBtn.disabled = false; bBtn.style.background = '#ffaa00'; bBtn.innerText = 'ВЫВОД';
+            if(bBtn.innerText === 'Ready') {
+                bBtn.disabled = false; bBtn.style.background = '#0088ff'; bBtn.style.color = '#fff';
+                bBtn.innerText = 'Cash Out x' + mult.toFixed(2);
             }
         }
-        if(st === 'WAIT' && d.timer) bBtn.innerText = d.timer;
+        if(st === 'WAIT' && d.timer) bBtn.innerText = 'Starts in ' + d.timer + 's';
     });
 
     bBtn.onclick = () => {
-        const amt = parseFloat(document.getElementById('i-bet').value);
         if(st === 'WAIT') {
-            if(bal < amt) return;
-            bal -= amt; document.getElementById('b-val').innerText = bal.toFixed(0);
-            socket.emit('placeBet', { bet: amt, name: nick });
-            bBtn.innerText = 'ОЖИДАНИЕ'; bBtn.disabled = true;
+            socket.emit('placeBet', { bet: 0.1, name: nick }); // Ставка заглушка
+            bBtn.innerText = 'Ready'; bBtn.disabled = true; bBtn.style.background = '#1a1a1a'; bBtn.style.color = '#555';
         } else if(st === 'FLY') {
-            bal += (amt * mult); document.getElementById('b-val').innerText = bal.toFixed(0);
             socket.emit('cashOut');
-            bBtn.innerText = 'OK'; bBtn.disabled = true;
+            bBtn.innerText = 'Cashed Out!'; bBtn.disabled = true;
         }
     };
 
