@@ -3,311 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rocket X - Pro Edition</title>
+    <title>Rocket X Compact</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root {
-            --bg: #000000;
-            --card: #151515;
-            --accent: #00ff41; /* Неоновый зеленый */
-            --accent-soft: rgba(0, 255, 65, 0.2);
-            --text: #ffffff;
-            --text-dim: #888;
-            --danger: #ff3e3e;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* Шапка */
-        header {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 20px;
-            background: var(--card);
-            border-bottom: 1px solid #222;
-            align-items: center;
-        }
-
-        .user-panel { display: flex; gap: 15px; align-items: center; }
-        .balance-box { background: #222; padding: 6px 12px; border-radius: 6px; font-weight: 700; color: var(--accent); }
-        .icon-btn { cursor: pointer; font-size: 1.2rem; filter: grayscale(1); transition: 0.2s; }
-        .icon-btn:hover { filter: grayscale(0); }
+        :root { --bg: #000; --card: #111; --acc: #00ff41; --btn: #222; --txt: #eee; }
+        body { font-family: -apple-system, system-ui; background: var(--bg); color: var(--txt); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* Компактная шапка */
+        header { display: flex; justify-content: space-between; padding: 8px 12px; background: var(--card); border-bottom: 1px solid #222; font-size: 14px; }
+        .bal { color: var(--acc); font-weight: bold; }
+        .h-list { display: flex; gap: 4px; padding: 5px 10px; background: #050505; overflow-x: auto; border-bottom: 1px solid #111; min-height: 20px; }
+        .h-item { font-size: 10px; padding: 2px 6px; background: #1a1a1a; border-radius: 3px; color: #888; }
 
         /* Игровое поле */
-        .viewport { position: relative; flex: 1; overflow: hidden; background: #000; }
-        canvas { width: 100%; height: 100%; display: block; }
+        .vp { position: relative; flex: 1; background: #000; overflow: hidden; }
+        canvas { width: 100%; height: 100%; }
+        #mult { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 3.5rem; font-weight: 900; z-index: 10; pointer-events: none; }
         
-        #mult-val {
-            position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 5rem; font-weight: 900; z-index: 10;
-            font-variant-numeric: tabular-nums;
-            text-shadow: 0 0 40px rgba(0,0,0,1);
-        }
+        /* Список игроков - супер компактный */
+        .p-box { height: 80px; overflow-y: auto; font-size: 11px; padding: 5px 12px; background: #080808; border-top: 1px solid #111; }
+        .p-row { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid #151515; }
 
-        /* Очередь коэффициентов */
-        .history-strip {
-            display: flex; gap: 6px; padding: 8px 15px;
-            background: #0a0a0a; overflow-x: auto; border-bottom: 1px solid #111;
-        }
-        .h-badge {
-            padding: 2px 10px; border-radius: 4px; font-size: 11px; font-weight: 800;
-            background: #1a1a1a; color: #888; border: 1px solid #222;
-        }
-
-        /* Контролы */
-        .bet-area {
-            background: var(--card); padding: 15px;
-            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-            border-top: 1px solid #222;
-        }
-        .input-group { position: relative; display: flex; flex-direction: column; gap: 5px; }
-        .input-group label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; }
-        input {
-            background: #000; border: 1px solid #333; color: #fff;
-            padding: 12px; border-radius: 8px; font-size: 1.1rem; outline: none;
-        }
-        .main-btn {
-            grid-column: span 2; padding: 16px; border-radius: 10px;
-            border: none; font-weight: 900; font-size: 1.2rem; cursor: pointer;
-            text-transform: uppercase; transition: 0.2s;
-            background: var(--accent); color: #000;
-        }
-        .main-btn:disabled { background: #222; color: #555; }
-        .main-btn.cashout { background: #ffaa00; box-shadow: 0 0 20px rgba(255,170,0,0.3); }
-
-        /* Таблица игроков */
-        .players-table {
-            background: #0a0a0a; height: 150px; overflow-y: auto;
-            font-size: 12px; padding: 10px;
-        }
-        .p-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #111; }
-        .p-win { color: var(--accent); font-weight: bold; }
+        /* Контролы - все в одну линию для экономии места */
+        .ctrls { background: var(--card); padding: 10px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #222; }
+        .in-row { display: flex; gap: 8px; }
+        input { background: #000; border: 1px solid #333; color: #fff; padding: 8px; border-radius: 5px; flex: 1; font-size: 14px; }
+        .go-btn { padding: 12px; border-radius: 6px; border: none; font-weight: bold; font-size: 1rem; background: var(--acc); color: #000; cursor: pointer; text-transform: uppercase; }
+        .go-btn:disabled { background: #333; color: #666; }
+        .go-win { background: #ffaa00; }
 
         /* Модалки */
-        .modal {
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: #151515; padding: 25px; border-radius: 16px; border: 1px solid #333;
-            width: 85%; max-width: 320px; z-index: 100;
-        }
-        .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 90; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #151515; padding: 15px; border-radius: 10px; border: 1px solid #333; z-index: 100; width: 70%; }
+        .ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 90; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="user-panel">
-        <span class="icon-btn" onclick="openModal('profile')">👤</span>
-        <span class="icon-btn" onclick="openModal('settings')">⚙️</span>
-    </div>
-    <div class="balance-box"><span id="balance">1000.00</span> ₽</div>
+    <div onclick="toggleM('p')">👤 <span id="n-disp">Pilot</span></div>
+    <div onclick="toggleM('s')">⚙️</div>
+    <div class="bal"><span id="b-val">1000</span> ₽</div>
 </header>
 
-<div id="history" class="history-strip"></div>
+<div id="h-box" class="h-list"></div>
 
-<div class="viewport">
-    <canvas id="gameCanvas"></canvas>
-    <div id="mult-val">1.00x</div>
+<div class="vp">
+    <canvas id="c"></canvas>
+    <div id="mult">1.00x</div>
 </div>
 
-<div class="players-table" id="live-players">
-    <!-- Игроки здесь -->
+<div class="p-box" id="p-list"></div>
+
+<div class="ctrls">
+    <div class="in-row">
+        <input type="number" id="i-bet" value="100" placeholder="Ставка">
+        <input type="number" id="i-auto" placeholder="Авто x">
+    </div>
+    <button id="btn" class="go-btn">ПОСТАВИТЬ</button>
 </div>
 
-<div class="bet-area">
-    <div class="input-group">
-        <label>Сумма ставки</label>
-        <input type="number" id="bet-val" value="100">
-    </div>
-    <div class="input-group">
-        <label>Авто-вывод</label>
-        <input type="number" id="auto-cash" placeholder="Нет" step="0.1">
-    </div>
-    <button id="action-btn" class="main-btn">Сделать ставку</button>
+<div class="ov" id="ov" onclick="toggleM()"></div>
+<div class="modal" id="m-p">
+    <h4 style="margin:0 0 10px">Профиль</h4>
+    <input type="text" id="i-nick" placeholder="Новый ник" style="width:90%">
+    <button class="go-btn" style="width:100%; margin-top:10px" onclick="saveP()">ОК</button>
 </div>
 
-<!-- Окна -->
-<div class="overlay" id="overlay" onclick="closeModals()"></div>
-<div class="modal" id="profile-modal">
-    <h3>Профиль</h3>
-    <input type="text" id="nick-input" placeholder="Новый ник" style="width:100%; box-sizing:border-box">
-    <p style="font-size:12px; color:#888; margin-top:15px">Рекорд: <span id="record-val">1.00</span>x</p>
-    <button class="main-btn" style="width:100%; margin-top:10px" onclick="saveProfile()">Сохранить</button>
-</div>
-
-<div class="modal" id="settings-modal">
-    <h3>Настройки</h3>
-    <div style="display:flex; justify-content:space-between; margin-bottom:15px">
-        <span>Звук</span><input type="checkbox" checked>
-    </div>
-    <div style="display:flex; justify-content:space-between; margin-bottom:15px">
-        <span>Сетка</span><input type="checkbox" checked onchange="toggleGrid(this.checked)">
-    </div>
-    <button class="main-btn" style="width:100%" onclick="closeModals()">Закрыть</button>
+<div class="modal" id="m-s">
+    <h4 style="margin:0 0 10px">Настройки</h4>
+    <div style="font-size:12px; margin-bottom:10px"><input type="checkbox" checked> Звук</div>
+    <div style="font-size:12px; margin-bottom:10px"><input type="checkbox" checked id="c-grid"> Сетка</div>
+    <button class="go-btn" style="width:100%" onclick="toggleM()">ЗАКРЫТЬ</button>
 </div>
 
 <script>
     const socket = io();
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const multDisp = document.getElementById('mult-val');
-    const actionBtn = document.getElementById('action-btn');
-
-    let state = 'WAIT', multiplier = 1.00, balance = 1000.00, showGrid = true;
+    const canv = document.getElementById('c'), ctx = canv.getContext('2d');
+    const bBtn = document.getElementById('btn'), mVal = document.getElementById('mult');
+    
+    let st = 'WAIT', mult = 1.00, bal = 1000.0, nick = localStorage.getItem('n') || "User"+Math.floor(Math.random()*99);
     let stars = [], trail = [];
-    let myNick = localStorage.getItem('nick') || "User_" + Math.floor(Math.random()*9999);
-    let myRecord = localStorage.getItem('record') || 1.00;
 
     // Инициализация
-    document.getElementById('balance').innerText = balance.toFixed(2);
-    document.getElementById('record-val').innerText = myRecord;
-    document.getElementById('nick-input').value = myNick;
-    socket.emit('join', { name: myNick });
+    document.getElementById('b-val').innerText = bal.toFixed(0);
+    document.getElementById('n-disp').innerText = nick;
+    socket.emit('join', { name: nick });
 
-    function openModal(id) {
-        document.getElementById('overlay').style.display = 'block';
-        document.getElementById(id + '-modal').style.display = 'block';
+    function toggleM(t) {
+        document.getElementById('ov').style.display = t ? 'block' : 'none';
+        if(t==='p') document.getElementById('m-p').style.display = 'block';
+        if(t==='s') document.getElementById('m-s').style.display = 'block';
+        if(!t) document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
     }
-    function closeModals() {
-        document.querySelectorAll('.modal, .overlay').forEach(el => el.style.display = 'none');
-    }
-    function saveProfile() {
-        myNick = document.getElementById('nick-input').value;
-        localStorage.setItem('nick', myNick);
-        socket.emit('join', { name: myNick });
-        closeModals();
-    }
-    function toggleGrid(v) { showGrid = v; }
 
-    function resize() {
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-        stars = [];
-        for(let i=0; i<50; i++) stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2});
+    function saveP() {
+        nick = document.getElementById('i-nick').value || nick;
+        localStorage.setItem('n', nick);
+        document.getElementById('n-disp').innerText = nick;
+        socket.emit('join', { name: nick });
+        toggleM();
     }
-    window.onresize = resize; resize();
 
-    function drawRocket(m) {
-        ctx.clearRect(0,0,canvas.width, canvas.height);
-        
-        // Рисуем сетку
-        if(showGrid) {
-            ctx.strokeStyle = '#111'; ctx.lineWidth = 1;
-            for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
-            for(let i=0; i<canvas.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+    function res() { 
+        canv.width = canv.offsetWidth; canv.height = canv.offsetHeight;
+        stars = []; for(let i=0; i<40; i++) stars.push({x:Math.random()*canv.width, y:Math.random()*canv.height, s:Math.random()*1.5});
+    }
+    window.onresize = res; res();
+
+    function draw(m) {
+        ctx.clearRect(0,0,canv.width, canv.height);
+        if(document.getElementById('c-grid').checked) {
+            ctx.strokeStyle = '#111'; ctx.lineWidth = 0.5;
+            for(let i=0; i<canv.width; i+=30) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canv.height); ctx.stroke(); }
+            for(let i=0; i<canv.height; i+=30) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canv.width,i); ctx.stroke(); }
         }
-
-        // Звезды
         stars.forEach(s => {
-            s.y += (state === 'FLY' ? m : 0.2);
-            if(s.y > canvas.height) s.y = 0;
-            ctx.fillStyle = '#444'; ctx.fillRect(s.x, s.y, s.s, s.s);
+            s.y += (st === 'FLY' ? m*0.5 : 0.2); if(s.y > canv.height) s.y = 0;
+            ctx.fillStyle = '#333'; ctx.fillRect(s.x, s.y, s.s, s.s);
         });
 
-        if(state !== 'FLY') return;
-
-        let p = Math.min((m - 1) / 6, 1);
-        let x = 60 + p * (canvas.width - 120);
-        let y = canvas.height - 60 - p * (canvas.height - 120);
-
-        // След
-        trail.push({x, y}); if(trail.length > 30) trail.shift();
-        ctx.strokeStyle = 'rgba(0, 255, 65, 0.3)'; ctx.lineWidth = 4;
-        ctx.beginPath(); trail.forEach((pt, i) => { if(i===0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); });
-        ctx.stroke();
-
-        // Ракета (рисунок)
-        ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI/4 * p);
-        // Пламя
-        ctx.fillStyle = Math.random() > 0.5 ? '#ffaa00' : '#ff3300';
-        ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(-35, -5); ctx.lineTo(-35, 5); ctx.fill();
-        // Корпус
-        ctx.fillStyle = '#eee'; ctx.beginPath(); ctx.ellipse(0, 0, 25, 10, 0, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = var(--accent); ctx.fillRect(-10, -10, 5, 20); // Крыло
-        ctx.restore();
+        if(st !== 'FLY') return;
+        let p = Math.min((m - 1) / 5, 1);
+        let x = 40 + p * (canv.width - 80), y = canv.height - 40 - p * (canv.height - 80);
+        trail.push({x,y}); if(trail.length > 20) trail.shift();
+        ctx.strokeStyle = 'rgba(0,255,65,0.2)'; ctx.lineWidth = 2;
+        ctx.beginPath(); trail.forEach((pt,i) => { if(i===0) ctx.moveTo(pt.x,pt.y); else ctx.lineTo(pt.x,pt.y); }); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill(); // Упрощенная ракета-точка
     }
 
-    socket.on('gameState', (data) => {
-        state = data.state;
-        if(state === 'WAIT') {
-            multiplier = 1.00; trail = [];
-            multDisp.innerText = '1.00x'; multDisp.style.color = '#fff';
-            actionBtn.innerText = 'Сделать ставку'; actionBtn.className = 'main-btn';
-            actionBtn.disabled = false;
-            document.getElementById('live-players').innerHTML = '';
+    socket.on('gameState', (d) => {
+        st = d.state;
+        if(st === 'WAIT') {
+            mult = 1.0; trail = []; mVal.innerText = '1.00x'; mVal.style.color = '#fff';
+            bBtn.innerText = 'ПОСТАВИТЬ'; bBtn.className = 'go-btn'; bBtn.disabled = false;
+            document.getElementById('p-list').innerHTML = '';
         }
-        if(state === 'CRASH') {
-            multDisp.innerText = 'BOOM! ' + data.multiplier + 'x';
-            multDisp.style.color = var(--danger);
-            updateHistory(data.history);
-        }
-    });
-
-    socket.on('tick', (data) => {
-        if(data.multiplier) {
-            multiplier = parseFloat(data.multiplier);
-            if(state === 'FLY') {
-                multDisp.innerText = multiplier.toFixed(2) + 'x';
-                drawRocket(multiplier);
-                if(actionBtn.innerText === 'СТАВКА ПРИНЯТА') {
-                    actionBtn.innerText = 'ЗАБРАТЬ ' + (document.getElementById('bet-val').value * multiplier).toFixed(2);
-                    actionBtn.className = 'main-btn cashout';
-                    actionBtn.disabled = false;
-                }
+        if(st === 'CRASH') {
+            mVal.innerText = 'CRASH ' + d.multiplier + 'x'; mVal.style.color = '#ff3e3e';
+            bBtn.disabled = true;
+            if(d.history) {
+                document.getElementById('h-box').innerHTML = d.history.slice(0,10).map(v => `<div class="h-item">${v}x</div>`).join('');
             }
         }
-        if(state === 'WAIT' && data.timer) {
-            actionBtn.innerText = 'Начало через ' + data.timer;
-        }
     });
 
-    function updateHistory(list) {
-        document.getElementById('history').innerHTML = list.slice(0, 15).map(v => 
-            `<div class="h-badge" style="color:${v > 2 ? 'var(--accent)' : '#888'}">${v}x</div>`
-        ).join('');
-    }
+    socket.on('tick', (d) => {
+        if(d.multiplier && st === 'FLY') {
+            mult = parseFloat(d.multiplier);
+            mVal.innerText = mult.toFixed(2) + 'x';
+            draw(mult);
+            if(bBtn.innerText === 'СТАВКА...') {
+                bBtn.disabled = false; bBtn.className = 'go-btn go-win'; bBtn.innerText = 'ЗАБРАТЬ ' + (document.getElementById('i-bet').value * mult).toFixed(0);
+            }
+        }
+        if(st === 'WAIT' && d.timer) bBtn.innerText = 'ЖДЕМ ' + d.timer;
+    });
 
-    actionBtn.onclick = () => {
-        const bet = parseFloat(document.getElementById('bet-val').value);
-        if(state === 'WAIT') {
-            if(balance < bet) return alert('Мало денег!');
-            balance -= bet; updateUI();
-            socket.emit('placeBet', { bet: bet, name: myNick });
-            actionBtn.innerText = 'СТАВКА ПРИНЯТА'; actionBtn.disabled = true;
-        } else if(state === 'FLY') {
-            balance += (bet * multiplier);
-            if(multiplier > myRecord) { myRecord = multiplier.toFixed(2); localStorage.setItem('record', myRecord); }
-            updateUI();
+    bBtn.onclick = () => {
+        const amt = parseFloat(document.getElementById('i-bet').value);
+        if(st === 'WAIT') {
+            if(bal < amt) return;
+            bal -= amt; document.getElementById('b-val').innerText = bal.toFixed(0);
+            socket.emit('placeBet', { bet: amt, name: nick });
+            bBtn.innerText = 'СТАВКА...'; bBtn.disabled = true;
+        } else if(st === 'FLY') {
+            bal += (amt * mult); document.getElementById('b-val').innerText = bal.toFixed(0);
             socket.emit('cashOut');
-            actionBtn.innerText = 'ВЫИГРАЛ!'; actionBtn.disabled = true;
+            bBtn.innerText = 'OK!'; bBtn.disabled = true;
         }
     };
 
-    function updateUI() {
-        document.getElementById('balance').innerText = balance.toFixed(2);
-        document.getElementById('record-val').innerText = myRecord;
-    }
-
-    socket.on('playerAction', (data) => {
-        const lp = document.getElementById('live-players');
-        if(data.type === 'bet') {
-            lp.innerHTML += `<div class="p-row" id="p-${data.name}"><span>👤 ${data.name}</span><span>${data.bet} ₽</span></div>`;
-        } else if(data.type === 'cashout') {
-            const row = document.getElementById('p-' + data.name);
-            if(row) row.innerHTML += `<span class="p-win">${data.mult}x</span>`;
-        }
+    socket.on('playerAction', (d) => {
+        const pl = document.getElementById('p-list');
+        if(d.type === 'bet') pl.innerHTML += `<div class="p-row"><span>👤 ${d.name}</span><span>${d.bet} ₽</span></div>`;
     });
 
-    setInterval(() => { if(state !== 'FLY') drawRocket(1); }, 50);
+    setInterval(() => { if(st !== 'FLY') draw(1); }, 60);
 </script>
-
 </body>
 </html>
