@@ -18,6 +18,8 @@ let startTime = 0;
 let history = [];
 let players = {}; 
 
+// --- ЛОГИКА ИГРОВОГО ЦИКЛА ---
+
 function startCycle() {
     gameState = 'WAIT';
     multiplier = 1.00;
@@ -27,14 +29,14 @@ function startCycle() {
     for (let id in players) {
         players[id].betPlaced = false;
         players[id].cashedOut = false;
+        players[id].currentBet = 0;
     }
 
     io.emit('gameState', { state: 'WAIT', history });
 
     const waitInterval = setInterval(() => {
         waitTimer -= 0.1;
-        // Отправляем тики таймера для экрана ожидания
-        io.emit('tick', { timer: waitTimer.toFixed(2), multiplier: "1.00" });
+        io.emit('tick', { timer: waitTimer.toFixed(1), multiplier: "1.00" });
 
         if (waitTimer <= 0) {
             clearInterval(waitInterval);
@@ -46,15 +48,20 @@ function startCycle() {
 function launchRocket() {
     gameState = 'FLY';
     startTime = Date.now();
-    // Генерация точки взрыва (математика казино)
+    
+    // Математика честного Crash (House Edge 3%)
+    // Результат генерируется ЗАРАНЕЕ, как в настоящих казино
     crashPoint = (100 / (Math.random() * 99 + 1)) * 0.97; 
+    
     io.emit('gameState', { state: 'FLY', startTime });
 
     const gameLoop = setInterval(() => {
-        // Формула роста множителя
-        multiplier = Math.pow(1.00045, Date.now() - startTime);
+        // Формула роста множителя (плавная экспонента)
+        const elapsed = (Date.now() - startTime) / 1000;
+        multiplier = Math.pow(Math.E, 0.06 * elapsed);
         
         if (multiplier >= crashPoint) {
+            multiplier = crashPoint; // Фиксируем точный момент взрыва
             clearInterval(gameLoop);
             doCrash();
         } else {
@@ -74,73 +81,79 @@ function doCrash() {
         history 
     });
     
-    setTimeout(startCycle, 3000); // Пауза 3 сек после взрыва
+    setTimeout(startCycle, 3000); // Пауза 3 сек перед новым раундом
 }
 
+// --- ЛОГИКА ПОДКЛЮЧЕНИЙ И СТАВОК ---
+
 io.on('connection', (socket) => {
-    // Регистрация игрока
-    players[socket.id] = { name: "Guest", bet: 0, betPlaced: false, cashedOut: false };
+    // 1. Создаем игрока с начальным балансом 1000
+    players[socket.id] = { 
+        name: "Guest", 
+        balance: 1000.00, 
+        currentBet: 0, 
+        betPlaced: false, 
+        cashedOut: false 
+    };
+
+    // 2. СРАЗУ отправляем баланс игроку, чтобы на экране не было 0.00
+    socket.emit('updateBalance', { balance: players[socket.id].balance });
 
     socket.on('join', (data) => {
         if(players[socket.id]) players[socket.id].name = data.name || "Guest";
     });
 
+    // ОБРАБОТКА СТАВКИ
     socket.on('placeBet', (data) => {
         const player = players[socket.id];
-        // Важно: в твоем index.html поле называется bet, а не amount
-        const betAmount = parseFloat(data.bet); 
+        const betAmount = parseFloat(data.bet);
 
-        if (gameState === 'WAIT' && player && !player.betPlaced) {
-            // ПРОВЕРКА: Число ли это и хватает ли денег?
-            if (!isNaN(betAmount) && betAmount > 0 && player.balance >= betAmount) {
-                player.balance -= betAmount; // Списываем деньги сразу!
-                player.bet = betAmount;
+        if(gameState === 'WAIT' && player && !player.betPlaced) {
+            // ПРОВЕРКА: хватает ли денег на балансе?
+            if (betAmount > 0 && player.balance >= betAmount) {
+                player.balance -= betAmount; // Списываем деньги
+                player.currentBet = betAmount;
                 player.betPlaced = true;
 
-                // Отправляем игроку его НОВЫЙ баланс после списания
+                // Подтверждаем списание игроку
                 socket.emit('updateBalance', { balance: player.balance });
                 
-                // Оповещаем всех в чате/списке
+                // Показываем всем остальным, что игрок зашел в игру
                 io.emit('playerAction', { 
                     name: player.name, 
                     bet: betAmount, 
                     type: 'bet' 
                 });
             } else {
-                // Если денег нет — отправляем сигнал об ошибке
-                socket.emit('errorMsg', { text: "Недостаточно средств или неверная сумма!" });
+                // Если денег нет — шлем ошибку
+                socket.emit('errorMsg', { text: "Недостаточно средств!" });
             }
         }
     });
 
+    // ВЫВОД ДЕНЕГ (CASHOUT)
     socket.on('cashOut', () => {
-    const player = players[socket.id];
-    // Проверяем: игра идет, игрок сделал ставку и еще не забирал деньги
-    if(gameState === 'FLY' && player && player.betPlaced && !player.cashedOut) {
-        
-        // 1. Считаем выигрыш (ставка * текущий коэффициент)
-        const winAmount = player.bet * multiplier;
-        
-        // 2. Начисляем деньги в кошелек на сервере
-        player.balance += winAmount;
-        player.cashedOut = true;
+        const player = players[socket.id];
+        if(gameState === 'FLY' && player && player.betPlaced && !player.cashedOut) {
+            const winAmount = player.currentBet * multiplier;
+            player.balance += winAmount; // Начисляем выигрыш
+            player.cashedOut = true;
 
-        // 3. СРАЗУ отправляем игроку его новый баланс
-        socket.emit('updateBalance', { balance: player.balance });
-
-        // 4. Оповещаем всех об успешном выходе
-        io.emit('playerAction', { 
-            name: player.name, 
-            mult: multiplier.toFixed(2), 
-            type: 'cashout' 
-        });
-    }
-});
+            // Отправляем новый баланс с выигрышем
+            socket.emit('updateBalance', { balance: player.balance });
+            
+            io.emit('playerAction', { 
+                name: player.name, 
+                mult: multiplier.toFixed(2), 
+                type: 'cashout' 
+            });
+        }
+    });
 
     socket.on('disconnect', () => { delete players[socket.id]; });
 });
 
-// Запуск бесконечного цикла игры
+// Запуск бесконечного цикла
 startCycle();
 
 const PORT = process.env.PORT || 3000;
