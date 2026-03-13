@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KR ROCKET - MULTIPLAYER ELITE</title>
+    <script src="https://cdn.socket.io"></script>
+    <style>
+        :root { --acid: #ccff00; --bg: #000; --panel: #0a0a0a; --border: #1a1a1a; }
+        body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid var(--border); height: 50px; background: #050505; }
+        .logo { color: var(--acid); font-weight: 900; font-size: 1rem; }
+        
+        .history-top { display: flex; gap: 8px; padding: 8px 15px; overflow-x: auto; background: #000; border-bottom: 1px solid var(--border); height: 35px; align-items: center; scrollbar-width: none; }
+        .h-badge { padding: 2px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; border: 1px solid var(--acid); flex-shrink: 0; color: var(--acid); background: rgba(204, 255, 0, 0.05); }
+
+        .game-viewport { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px; }
+        .game-window { width: 100%; max-width: 380px; aspect-ratio: 16/10; background: #000; border: 2px solid var(--border); border-radius: 12px; position: relative; overflow: hidden; margin-bottom: 5px; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        #mult-display { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 3.5rem; font-weight: 900; color: var(--acid); display: none; z-index: 10; text-shadow: 0 0 20px var(--acid); }
+        #timer-display { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 3.5rem; color: #fff; font-weight: bold; z-index: 10; }
+
+        .tabs { display: flex; width: 100%; max-width: 380px; gap: 5px; margin-bottom: 5px; }
+        .tab { flex: 1; padding: 7px; background: var(--panel); border: 1px solid var(--border); color: #444; border-radius: 6px; font-size: 0.7rem; font-weight: bold; text-align: center; cursor: pointer; }
+        .tab.active { color: var(--acid); border-color: var(--acid); }
+
+        .list-box { width: 100%; max-width: 380px; background: var(--panel); border-radius: 10px; border: 1px solid var(--border); height: 115px; overflow-y: auto; margin-bottom: 10px; }
+        .row { display: flex; justify-content: space-between; padding: 8px 15px; border-bottom: 1px solid #111; font-size: 0.8rem; }
+        .is-me { border-left: 3px solid var(--acid); background: rgba(204, 255, 0, 0.1); }
+
+        .controls { width: 100%; max-width: 380px; padding-bottom: 15px; }
+        .input-row { display: flex; gap: 10px; margin-bottom: 10px; width: 100%; }
+        .input-group { flex: 1; position: relative; display: flex; flex-direction: column; }
+        .input-group label { position: absolute; top: -7px; left: 10px; background: #000; padding: 0 5px; font-size: 0.6rem; color: #444; font-weight: bold; }
+        input { width: 100%; background: #000; border: 1px solid var(--border); color: var(--acid); padding: 12px; border-radius: 10px; outline: none; text-align: center; font-weight: bold; font-size: 1rem; }
+        #action-btn { width: 100%; background: var(--acid); color: #000; border: none; padding: 18px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; cursor: pointer; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; align-items: center; justify-content: center; }
+        .modal-content { background: var(--panel); border: 1px solid var(--acid); padding: 25px; border-radius: 20px; width: 280px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="font-size:1.2rem; color:var(--acid)">📡</div>
+    <div class="logo">🚀 KR ROCKET LIVE</div>
+    <div style="display:flex; align-items:center; gap:10px; cursor:pointer" onclick="toggleModal()">
+        <span id="bal-val" style="color:var(--acid); font-weight:bold;">1000.00</span>
+        <div style="font-size:1.2rem; color:var(--acid)">👤</div>
+    </div>
+</header>
+
+<div class="history-top" id="history-list"></div>
+
+<div class="game-viewport">
+    <div class="game-window">
+        <canvas id="bg-canvas"></canvas>
+        <canvas id="game-canvas"></canvas>
+        <div id="mult-display">1.00x</div>
+        <div id="timer-display">5.00</div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" id="tab-bets" onclick="switchTab('bets')">BETS</div>
+        <div class="tab" id="tab-chat" onclick="switchTab('chat')">CHAT</div>
+    </div>
+
+    <div class="list-box" id="list-content"></div>
+
+    <div class="controls">
+        <div class="input-row">
+            <div class="input-group"><label>BET</label><input type="number" id="bet" value="10"></div>
+            <div class="input-group"><label>AUTO</label><input type="number" id="auto" value="0"></div>
+        </div>
+        <button id="action-btn">ПОСТАВИТЬ</button>
+    </div>
+</div>
+
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <h3 style="color:var(--acid); margin-top:0">PROFILE</h3>
+        <input type="text" id="nick" value="Zxcursed" style="margin-bottom:10px; width: 100%;">
+        <button onclick="deposit()" style="width:100%; background:var(--acid); color:#000; border:none; padding:12px; border-radius:8px; font-weight:bold;">ПОПОЛНИТЬ +1000$</button>
+        <button onclick="toggleModal()" style="width:100%; background:transparent; color:#555; border:none; margin-top:15px;">ЗАКРЫТЬ</button>
+    </div>
+</div>
+
+<script>
+    const socket = io(); // Подключение к твоему серверу
+    const bgCanvas = document.getElementById('bg-canvas'), gameCanvas = document.getElementById('game-canvas');
+    const bgCtx = bgCanvas.getContext('2d'), gameCtx = gameCanvas.getContext('2d');
+    const multDisp = document.getElementById('mult-display'), timerDisp = document.getElementById('timer-display');
+    const actionBtn = document.getElementById('action-btn'), balDisp = document.getElementById('bal-val');
+    const listContent = document.getElementById('list-content'), histList = document.getElementById('history-list');
+
+    let balance = 1000.00, state = 'WAIT', multiplier = 1.00, startTime = 0, currentTab = 'bets', myNick = "Player_" + Math.floor(Math.random()*999);
+    let stars = [], starsInit = false;
+
+    // --- SOCKET LOGIC ---
+    socket.emit('join', { name: document.getElementById('nick').value });
+
+    socket.on('gameState', (data) => {
+        state = data.state;
+        if(state === 'WAIT') {
+            multDisp.style.display = 'none';
+            timerDisp.style.display = 'block';
+            actionBtn.innerText = "ПОСТАВИТЬ";
+            actionBtn.disabled = false;
+            actionBtn.style.background = "var(--acid)";
+            listContent.innerHTML = '';
+        }
+        if(state === 'FLY') {
+            timerDisp.style.display = 'none';
+            multDisp.style.display = 'block';
+            multDisp.style.color = "var(--acid)";
+            startTime = data.startTime;
+            if(actionBtn.innerText === "ГОТОВО") actionBtn.innerText = "ЗАБРАТЬ";
+            else { actionBtn.disabled = true; actionBtn.style.background = "#111"; }
+        }
+        if(state === 'CRASH') {
+            multDisp.innerText = "BOOM!";
+            multDisp.style.color = "#ff3300";
+            histList.innerHTML = '';
+            data.history.forEach(h => {
+                const b = document.createElement('div'); b.className = 'h-badge'; b.innerText = h + 'x';
+                histList.appendChild(b);
+            });
+            setTimeout(() => { if(state === 'CRASH') multDisp.innerText = "1.00x"; }, 2000);
+        }
+    });
+
+    socket.on('tick', (data) => { 
+        multiplier = data.multiplier;
+        if(state === 'FLY') multDisp.innerText = multiplier + "x"; 
+    });
+
+    socket.on('playerAction', (data) => {
+        if(currentTab !== 'bets') return;
+        if(data.type === 'bet') {
+            const r = document.createElement('div'); r.className = 'row' + (data.name === document.getElementById('nick').value ? ' is-me' : ''); 
+            r.id = 'p-' + data.name;
+            r.innerHTML = `<span>${data.name}</span> <span class="v">${data.bet} $</span>`;
+            listContent.prepend(r);
+        } else {
+            const row = document.getElementById('p-' + data.name);
+            if(row) row.querySelector('.v').innerHTML = `<span style="color:var(--acid); font-weight:bold">${data.mult}x</span>`;
+        }
+    });
+
+    // --- VISUAL LOGIC ---
+    function initStars() {
+        stars = [];
+        for(let i=0; i<60; i++) stars.push({ x: Math.random()*bgCanvas.width, y: Math.random()*bgCanvas.height, s: Math.random()*1.5 + 0.5, c: '#fff' });
+        starsInit = true;
+    }
+
+    function drawRocket(ctx, x, y, p) {
+        ctx.save();
+        ctx.translate(x, y + Math.sin(Date.now() / 250) * 8);
+        ctx.rotate(-Math.PI / 8 * (1-p)); 
+        ctx.fillStyle = '#ccff00'; ctx.globalAlpha = 0.4 + Math.random()*0.3;
+        ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-30 - (Math.random()*15), -5); ctx.lineTo(-30 - (Math.random()*15), 5); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#111'; ctx.strokeStyle = '#ccff00'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(30, 0); ctx.quadraticCurveTo(15, -10, -15, -10); ctx.lineTo(-15, 10); ctx.quadraticCurveTo(15, 10, 30, 0);
+        ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-5, -10); ctx.lineTo(-18, -22); ctx.lineTo(-18, -10); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-5, 10); ctx.lineTo(-18, 22); ctx.lineTo(-18, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#ccff00'; ctx.beginPath(); ctx.arc(12, 0, 3, 0, 7); ctx.fill();
+        ctx.restore();
+    }
+
+    function draw() {
+        bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+        let glowOpacity = state === 'WAIT' ? (0.1 + Math.sin(Date.now()/400)*0.05) : Math.min(multiplier * 0.05, 0.2);
+        let grd = bgCtx.createRadialGradient(bgCanvas.width/2, bgCanvas.height/2, 0, bgCanvas.width/2, bgCanvas.height/2, 160);
+        grd.addColorStop(0, `rgba(204, 255, 0, ${glowOpacity})`);
+        grd.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        bgCtx.fillStyle = grd; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+        bgCtx.strokeStyle = '#222'; bgCtx.lineWidth = 1;
+        for(let i=0; i<bgCanvas.width; i+=40) { bgCtx.beginPath(); bgCtx.moveTo(i,0); bgCtx.lineTo(i,bgCanvas.height); bgCtx.stroke(); }
+        for(let j=0; j<bgCanvas.height; j+=40) { bgCtx.beginPath(); bgCtx.moveTo(0,j); bgCtx.lineTo(bgCanvas.width,j); bgCtx.stroke(); }
+        
+        let sSpeed = state === 'FLY' ? multiplier * 0.7 : 0.2;
+        stars.forEach(s => {
+            s.x -= sSpeed * s.s; if(s.x < 0) s.x = bgCanvas.width;
+            bgCtx.fillStyle = s.c; bgCtx.beginPath(); bgCtx.arc(s.x, s.y, s.s/2, 0, 7); bgCtx.fill();
+        });
+
+        gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+        if(state === 'FLY') {
+            const p = Math.min((Date.now() - startTime) / 7000, 1);
+            let tx = 40 + (gameCanvas.width - 120) * p, ty = (gameCanvas.height - 40) - (gameCanvas.height - 120) * Math.pow(p, 1.4);
+            drawRocket(gameCtx, tx, ty, p);
+        }
+        requestAnimationFrame(draw);
+    }
+
+    // --- CONTROLS ---
+    actionBtn.onclick = () => {
+        if(state === 'WAIT') {
+            const bVal = parseFloat(document.getElementById('bet').value);
+            if(balance < bVal || bVal <= 0) return;
+            balance -= bVal; balDisp.innerText = balance.toFixed(2);
+            socket.emit('placeBet', { bet: bVal, name: document.getElementById('nick').value });
+            actionBtn.innerText = "ГОТОВО"; actionBtn.style.background = "#333";
+        } else if(state === 'FLY') {
+            socket.emit('cashOut');
+            const win = parseFloat(document.getElementById('bet').value) * multiplier;
+            balance += win; balDisp.innerText = balance.toFixed(2);
+            actionBtn.innerText = "ВЫИГРАНО!"; actionBtn.style.background = "#333";
+            actionBtn.disabled = true;
+        }
+    };
+
+    function switchTab(t) {
+        currentTab = t;
+        document.getElementById('tab-bets').className = 'tab' + (t === 'bets' ? ' active' : '');
+        document.getElementById('tab-chat').className = 'tab' + (t === 'chat' ? ' active' : '');
+    }
+
+    function toggleModal() { document.getElementById('modal').style.display = document.getElementById('modal').style.display === 'flex' ? 'none' : 'flex'; }
+    function deposit() { balance += 1000; balDisp.innerText = balance.toFixed(2); }
+    window.onload = () => { 
+        bgCanvas.width = gameCanvas.width = bgCanvas.offsetWidth;
+        bgCanvas.height = gameCanvas.height = bgCanvas.offsetHeight;
+        initStars(); draw(); 
+    };
+</script>
+</body>
+</html>
