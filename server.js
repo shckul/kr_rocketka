@@ -86,28 +86,56 @@ io.on('connection', (socket) => {
     });
 
     socket.on('placeBet', (data) => {
-        if(gameState === 'WAIT' && players[socket.id]) {
-            players[socket.id].bet = parseFloat(data.bet);
-            players[socket.id].betPlaced = true;
-            // Рассылаем всем инфо о ставке для списка игроков
-            io.emit('playerAction', { 
-                name: players[socket.id].name, 
-                bet: data.bet, 
-                type: 'bet' 
-            });
+        const player = players[socket.id];
+        // Важно: в твоем index.html поле называется bet, а не amount
+        const betAmount = parseFloat(data.bet); 
+
+        if (gameState === 'WAIT' && player && !player.betPlaced) {
+            // ПРОВЕРКА: Число ли это и хватает ли денег?
+            if (!isNaN(betAmount) && betAmount > 0 && player.balance >= betAmount) {
+                player.balance -= betAmount; // Списываем деньги сразу!
+                player.bet = betAmount;
+                player.betPlaced = true;
+
+                // Отправляем игроку его НОВЫЙ баланс после списания
+                socket.emit('updateBalance', { balance: player.balance });
+                
+                // Оповещаем всех в чате/списке
+                io.emit('playerAction', { 
+                    name: player.name, 
+                    bet: betAmount, 
+                    type: 'bet' 
+                });
+            } else {
+                // Если денег нет — отправляем сигнал об ошибке
+                socket.emit('errorMsg', { text: "Недостаточно средств или неверная сумма!" });
+            }
         }
     });
 
     socket.on('cashOut', () => {
-        if(gameState === 'FLY' && players[socket.id] && players[socket.id].betPlaced && !players[socket.id].cashedOut) {
-            players[socket.id].cashedOut = true;
-            io.emit('playerAction', { 
-                name: players[socket.id].name, 
-                mult: multiplier.toFixed(2), 
-                type: 'cashout' 
-            });
-        }
-    });
+    const player = players[socket.id];
+    // Проверяем: игра идет, игрок сделал ставку и еще не забирал деньги
+    if(gameState === 'FLY' && player && player.betPlaced && !player.cashedOut) {
+        
+        // 1. Считаем выигрыш (ставка * текущий коэффициент)
+        const winAmount = player.bet * multiplier;
+        
+        // 2. Начисляем деньги в кошелек на сервере
+        player.balance += winAmount;
+        player.cashedOut = true;
+
+        // 3. СРАЗУ отправляем игроку его новый баланс
+        socket.emit('updateBalance', { balance: player.balance });
+
+        // 4. Оповещаем всех об успешном выходе
+        io.emit('playerAction', { 
+            name: player.name, 
+            mult: multiplier.toFixed(2), 
+            type: 'cashout' 
+        });
+    }
+});
 
     socket.on('disconnect', () => { delete players[socket.id]; });
 });
