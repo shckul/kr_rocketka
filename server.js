@@ -21,9 +21,9 @@ let players = {};
 function startCycle() {
     gameState = 'WAIT';
     multiplier = 1.00;
-    let waitTimer = 5.0; // 5 секунд до старта
+    let waitTimer = 5.0; // Время на ставки
 
-    // Очистка состояния игроков
+    // Сброс состояния игроков перед новым раундом
     for (let id in players) {
         players[id].betPlaced = false;
         players[id].cashedOut = false;
@@ -31,10 +31,10 @@ function startCycle() {
 
     io.emit('gameState', { state: 'WAIT', history });
 
-    // Интервал для обратного отсчета (чтобы фронтенд видел 5.00, 4.90...)
     const waitInterval = setInterval(() => {
         waitTimer -= 0.1;
-        io.emit('tick', { timer: waitTimer.toFixed(2) });
+        // Отправляем тики таймера для экрана ожидания
+        io.emit('tick', { timer: waitTimer.toFixed(2), multiplier: "1.00" });
 
         if (waitTimer <= 0) {
             clearInterval(waitInterval);
@@ -46,12 +46,12 @@ function startCycle() {
 function launchRocket() {
     gameState = 'FLY';
     startTime = Date.now();
-    // Генерация точки краша
-    crashPoint = (100 / (Math.random() * 99 + 1)) * 0.97; // 3% маржа казино
+    // Генерация точки взрыва (математика казино)
+    crashPoint = (100 / (Math.random() * 99 + 1)) * 0.97; 
     io.emit('gameState', { state: 'FLY', startTime });
 
     const gameLoop = setInterval(() => {
-        // Формула роста
+        // Формула роста множителя
         multiplier = Math.pow(1.00045, Date.now() - startTime);
         
         if (multiplier >= crashPoint) {
@@ -74,11 +74,11 @@ function doCrash() {
         history 
     });
     
-    setTimeout(startCycle, 3000); // Пауза перед новым раундом
+    setTimeout(startCycle, 3000); // Пауза 3 сек после взрыва
 }
 
 io.on('connection', (socket) => {
-    // Инициализация при подключении
+    // Регистрация игрока
     players[socket.id] = { name: "Guest", bet: 0, betPlaced: false, cashedOut: false };
 
     socket.on('join', (data) => {
@@ -89,12 +89,16 @@ io.on('connection', (socket) => {
         if(gameState === 'WAIT' && players[socket.id]) {
             players[socket.id].bet = parseFloat(data.bet);
             players[socket.id].betPlaced = true;
-            io.emit('playerAction', { name: players[socket.id].name, bet: data.bet, type: 'bet' });
+            // Рассылаем всем инфо о ставке для списка игроков
+            io.emit('playerAction', { 
+                name: players[socket.id].name, 
+                bet: data.bet, 
+                type: 'bet' 
+            });
         }
     });
 
     socket.on('cashOut', () => {
-        // Проверка: можно забрать только в полете и до краша
         if(gameState === 'FLY' && players[socket.id] && players[socket.id].betPlaced && !players[socket.id].cashedOut) {
             players[socket.id].cashedOut = true;
             io.emit('playerAction', { 
@@ -108,6 +112,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => { delete players[socket.id]; });
 });
 
+// Запуск бесконечного цикла игры
 startCycle();
 
 const PORT = process.env.PORT || 3000;
