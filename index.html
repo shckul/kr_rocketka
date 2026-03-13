@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>KR ROCKET - MULTIPLAYER ELITE</title>
-    <!-- ИСПРАВЛЕНО: Правильный путь к сокетам на Render -->
+    <!-- ИСПРАВЛЕНО: Правильный путь для Render -->
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --acid: #ccff00; --bg: #000; --panel: #0a0a0a; --border: #1a1a1a; }
@@ -89,7 +89,6 @@
 </div>
 
 <script>
-    // ИСПРАВЛЕНО: Автоматическое определение хоста для сокетов
     const socket = io(); 
     const bgCanvas = document.getElementById('bg-canvas'), gameCanvas = document.getElementById('game-canvas');
     const bgCtx = bgCanvas.getContext('2d'), gameCtx = gameCanvas.getContext('2d');
@@ -98,81 +97,80 @@
     const listContent = document.getElementById('list-content'), histList = document.getElementById('history-list');
 
     let balance = 1000.00, state = 'WAIT', multiplier = 1.00, startTime = 0, currentTab = 'bets', myNick = "Player_" + Math.floor(Math.random()*999);
-    let stars = [], starsInit = false;
+    let stars = [], starsInit = false, timerInterval;
 
     // --- SOCKET LOGIC ---
-
-    // ИСПРАВЛЕНО: Регистрация игрока сразу после подключения
     socket.on('connect', () => {
-        const nickname = document.getElementById('nick').value || myNick;
-        socket.emit('join', { name: nickname });
+        socket.emit('join', { name: document.getElementById('nick').value || myNick });
     });
 
-    // ИСПРАВЛЕНО: Обработка клика по главной кнопке
+    // ИСПРАВЛЕНО: Функция таймера для синхронизации с 5 секундами сервера
+    function startLocalTimer() {
+        clearInterval(timerInterval);
+        let left = 5.00;
+        timerInterval = setInterval(() => {
+            left -= 0.01;
+            if(left <= 0) { clearInterval(timerInterval); timerDisp.innerText = "0.00"; }
+            else { timerDisp.innerText = left.toFixed(2); }
+        }, 10);
+    }
+
+    // ИСПРАВЛЕНО: Обработка кнопок
     actionBtn.onclick = () => {
-        const nickName = document.getElementById('nick').value || "Player";
-        if (state === 'WAIT') {
-            const betAmount = document.getElementById('bet').value;
-            // Уменьшаем баланс (визуально)
-            balance -= parseFloat(betAmount);
-            balDisp.innerText = balance.toFixed(2);
-            
-            socket.emit('placeBet', { bet: betAmount, name: nickName });
-            
-            actionBtn.innerText = "ГОТОВО";
-            actionBtn.style.background = "#555";
-            actionBtn.disabled = true;
-        } else if (state === 'FLY') {
+        if(state === 'WAIT') {
+            const val = parseFloat(document.getElementById('bet').value);
+            if(balance >= val) {
+                balance -= val; balDisp.innerText = balance.toFixed(2);
+                socket.emit('placeBet', { bet: val });
+                actionBtn.innerText = "ГОТОВО"; actionBtn.disabled = true; actionBtn.style.background = "#333";
+            }
+        } else if(state === 'FLY') {
             socket.emit('cashOut');
-            actionBtn.disabled = true;
-            actionBtn.style.background = "#111";
+            actionBtn.disabled = true; actionBtn.style.background = "#111";
         }
     };
 
     socket.on('gameState', (data) => {
         state = data.state;
         if(state === 'WAIT') {
+            multiplier = 1.00;
             multDisp.style.display = 'none';
+            multDisp.innerText = "1.00x";
+            multDisp.style.color = "var(--acid)";
             timerDisp.style.display = 'block';
+            startLocalTimer(); // Запуск отсчета
             actionBtn.innerText = "ПОСТАВИТЬ";
             actionBtn.disabled = false;
             actionBtn.style.background = "var(--acid)";
             listContent.innerHTML = '';
         }
         if(state === 'FLY') {
+            clearInterval(timerInterval);
             timerDisp.style.display = 'none';
             multDisp.style.display = 'block';
-            multDisp.style.color = "var(--acid)";
             startTime = data.startTime;
-            // Если была ставка, даем возможность забрать
             if(actionBtn.innerText === "ГОТОВО") {
                 actionBtn.innerText = "ЗАБРАТЬ";
                 actionBtn.disabled = false;
                 actionBtn.style.background = "#ffaa00";
-            } else { 
-                actionBtn.disabled = true; 
-                actionBtn.style.background = "#111"; 
-            }
+            } else { actionBtn.disabled = true; actionBtn.style.background = "#111"; }
         }
         if(state === 'CRASH') {
-            multDisp.innerText = "BOOM!";
+            clearInterval(timerInterval);
+            multDisp.innerText = "BOOM! " + data.multiplier + "x";
             multDisp.style.color = "#ff3300";
             histList.innerHTML = '';
             data.history.forEach(h => {
                 const b = document.createElement('div'); b.className = 'h-badge'; b.innerText = h + 'x';
                 histList.prepend(b);
             });
-            setTimeout(() => { if(state === 'CRASH') multDisp.innerText = "1.00x"; }, 2000);
+            actionBtn.innerText = "КРАШ"; actionBtn.disabled = true;
         }
     });
 
     socket.on('tick', (data) => { 
-        multiplier = data.multiplier;
-        if(state === 'FLY') {
-            multDisp.innerText = multiplier + "x";
-            let timeLeft = (5000 - (Date.now() - startTime)) / 1000;
-            if(timeLeft > 0) timerDisp.innerText = timeLeft.toFixed(2);
-        }
+        multiplier = parseFloat(data.multiplier);
+        if(state === 'FLY') multDisp.innerText = multiplier.toFixed(2) + "x"; 
     });
 
     socket.on('playerAction', (data) => {
@@ -185,23 +183,16 @@
             const row = document.getElementById('p-' + data.name);
             if(row) {
                 row.querySelector('.v').innerHTML = `<span style="color:var(--acid); font-weight:bold">${data.mult}x</span>`;
-                // Если это мы забирали, обновляем баланс
                 if(data.name === document.getElementById('nick').value) {
-                   // Здесь можно добавить логику начисления выигрыша на клиентский баланс
+                    balance += parseFloat(document.getElementById('bet').value) * parseFloat(data.mult);
+                    balDisp.innerText = balance.toFixed(2);
+                    actionBtn.innerText = "WIN!";
                 }
             }
         }
     });
 
-    // --- VISUAL LOGIC ( STARS & ROCKET ) ---
-    function resize() {
-        bgCanvas.width = bgCanvas.offsetWidth; bgCanvas.height = bgCanvas.offsetHeight;
-        gameCanvas.width = gameCanvas.offsetWidth; gameCanvas.height = gameCanvas.offsetHeight;
-        initStars();
-    }
-    window.addEventListener('resize', resize);
-    setTimeout(resize, 100);
-
+    // --- ТВОЯ ОРИГИНАЛЬНАЯ АНИМАЦИЯ ---
     function initStars() {
         stars = [];
         for(let i=0; i<60; i++) stars.push({ x: Math.random()*bgCanvas.width, y: Math.random()*bgCanvas.height, s: Math.random()*1.5 + 0.5, c: '#fff' });
@@ -211,7 +202,7 @@
     function drawRocket(ctx, x, y, p) {
         ctx.save();
         ctx.translate(x, y + Math.sin(Date.now() / 250) * 8);
-        ctx.rotate(-Math.PI / 8 * (1-p)); 
+        ctx.rotate(-Math.PI / 8 * p); 
         ctx.fillStyle = '#ccff00'; ctx.globalAlpha = 0.4 + Math.random()*0.3;
         ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-30 - Math.random()*20, 5); ctx.lineTo(-10, 10); ctx.fill();
         ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.fillRect(0,0,30,15);
@@ -224,21 +215,27 @@
         gameCtx.clearRect(0,0,gameCanvas.width,gameCanvas.height);
         
         stars.forEach(s => {
-            s.x -= (state === 'FLY' ? multiplier * 2 : 0.5);
+            s.x -= (state === 'FLY' ? multiplier * 1.5 : 0.5);
             if(s.x < 0) s.x = bgCanvas.width;
             bgCtx.fillStyle = s.c; bgCtx.fillRect(s.x, s.y, s.s, s.s);
         });
 
         if(state === 'FLY') {
-            let progress = Math.min((multiplier - 1) / 5, 1);
-            drawRocket(gameCtx, 50 + progress * 100, gameCanvas.height - 50 - progress * 100, progress);
-        } else if(state === 'WAIT') {
+            let p = Math.min((multiplier - 1) / 5, 1);
+            drawRocket(gameCtx, 50 + p * 120, gameCanvas.height - 50 - p * 80, p);
+        } else {
             drawRocket(gameCtx, 50, gameCanvas.height - 50, 0);
         }
-        
         requestAnimationFrame(loop);
     }
-    loop();
+
+    function resize() {
+        bgCanvas.width = bgCanvas.offsetWidth; bgCanvas.height = bgCanvas.offsetHeight;
+        gameCanvas.width = gameCanvas.offsetWidth; gameCanvas.height = gameCanvas.offsetHeight;
+        initStars();
+    }
+    window.addEventListener('resize', resize);
+    setTimeout(() => { resize(); loop(); }, 100);
 
     function switchTab(t) {
         currentTab = t;
