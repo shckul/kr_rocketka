@@ -3,187 +3,377 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rocket Crash Lite</title>
+    <title>Crash TON Edition</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root { --bg: #000; --card: #121212; --accent: #c4ff00; --txt: #fff; --dim: #888; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--txt); margin: 0; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
-        
-        header { display: flex; justify-content: space-between; padding: 12px 18px; align-items: center; }
-        .user-info { display: flex; align-items: center; gap: 10px; }
-        .avatar { width: 35px; height: 35px; background: #1a1a1a; border-radius: 50%; border: 1px solid #333; }
-        .wallet { background: var(--card); padding: 6px 14px; border-radius: 20px; font-weight: bold; border: 1px solid #222; color: #0088ff; }
+        :root {
+            --bg: #0b0e11;
+            --card: #14171a;
+            --accent: #c8ff00; /* Кислотно-желтый */
+            --text: #ffffff;
+            --gray: #5e6673;
+            --red: #ff4d4d;
+        }
 
-        /* Игровое поле с сеткой */
-        .game-window { margin: 10px; flex: 1.5; position: relative; background: #050505; border-radius: 20px; border: 1px solid #1a1a1a; overflow: hidden; }
-        canvas { width: 100%; height: 100%; }
-        .mult-overlay { position: absolute; top: 45%; left: 15%; transform: translateY(-50%); font-size: 3.5rem; font-weight: 900; color: var(--accent); z-index: 10; pointer-events: none; }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Шапка */
+        .header {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .avatar { width: 35px; height: 35px; background: #2b2f36; border-radius: 50%; }
+        .balance { background: #1e2329; padding: 5px 15px; border-radius: 20px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+
+        /* Игровое поле */
+        .game-container {
+            position: relative;
+            background: var(--card);
+            margin: 0 10px;
+            height: 260px;
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #2b2f36;
+            background-image: radial-gradient(circle at 50% 50%, #1a1d21 0%, #14171a 100%);
+        }
+
+        #multiplier { font-size: 3.5rem; font-weight: 800; z-index: 2; transition: transform 0.1s; }
+        #game-status { color: var(--gray); font-weight: bold; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .crashed-text { color: var(--red) !important; }
 
         /* История */
-        .h-row { display: flex; gap: 8px; padding: 5px 15px; overflow-x: auto; min-height: 35px; }
-        .h-tag { padding: 6px 14px; border-radius: 10px; background: var(--card); font-size: 13px; font-weight: 800; color: var(--dim); border: 1px solid #1a1a1a; white-space: nowrap; }
+        .history-bar {
+            display: flex;
+            gap: 8px;
+            padding: 15px 10px;
+            overflow-x: hidden;
+        }
+        .hist-item {
+            background: #1e2329;
+            padding: 6px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #bdc2c9;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* Управление */
-        .controls { padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .bet-btn { width: 100%; padding: 18px; border-radius: 16px; border: none; background: var(--accent); color: #000; font-weight: 900; font-size: 18px; text-transform: uppercase; cursor: pointer; transition: 0.2s; }
-        .bet-btn:disabled { background: #1a1a1a; color: #444; }
+        /* Кнопка управления */
+        .action-area { padding: 0 10px 15px; }
+        .main-btn {
+            width: 100%;
+            padding: 18px;
+            border-radius: 16px;
+            border: none;
+            font-size: 18px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+        .btn-waiting { background: var(--accent); color: #000; }
+        .btn-placed { background: #2b2f36; color: var(--gray); cursor: default; }
+        .btn-cashout { background: #ffffff; color: #000; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
 
-        /* Списки игроков */
-        .p-list { flex: 1; overflow-y: auto; padding: 0 15px; font-size: 13px; }
-        .p-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #111; color: var(--dim); }
+        /* Список игроков */
+        .players-section {
+            flex-grow: 1;
+            background: #0f1216;
+            margin: 0 10px;
+            border-radius: 20px 20px 0 0;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        .player-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #1a1d21;
+            font-size: 14px;
+        }
+        .p-name { display: flex; align-items: center; gap: 8px; }
+        .p-bet { color: var(--accent); font-weight: bold; }
 
-        /* Нижнее меню (Только Crash и Profile) */
-        nav { display: flex; justify-content: space-around; background: var(--card); padding: 12px 0 25px; border-top: 1px solid #1a1a1a; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--dim); font-size: 11px; text-decoration: none; cursor: pointer; }
-        .nav-item.active { color: var(--accent); }
+        /* Таббар */
+        .tab-bar {
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0 25px;
+            background: var(--card);
+            border-top: 1px solid #2b2f36;
+        }
+        .tab-item { color: var(--gray); text-align: center; font-size: 11px; cursor: pointer; }
+        .tab-item.active { color: var(--accent); }
+        .tab-icon { font-size: 20px; margin-bottom: 4px; display: block; }
 
-        /* Модалка Профиля */
-        #profile-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .modal-card { background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid #333; width: 85%; text-align: center; }
-        input { background: #000; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 10px; width: 90%; margin-bottom: 15px; font-size: 16px; text-align: center; }
+        /* Модалка */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+        }
+        .modal {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1e2329;
+            width: 85%;
+            padding: 25px;
+            border-radius: 24px;
+            z-index: 101;
+            display: none;
+        }
+        .modal h3 { margin-top: 0; text-align: center; }
+        input {
+            width: 100%;
+            padding: 15px;
+            margin: 20px 0;
+            background: #0b0e11;
+            border: 1px solid #2b2f36;
+            color: #fff;
+            border-radius: 12px;
+            font-size: 18px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        /* Вкладка Профиля */
+        #profile-page {
+            display: none;
+            padding: 20px;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .profile-card { background: var(--card); padding: 20px; border-radius: 20px; }
     </style>
 </head>
 <body>
 
-<header id="view-header">
-    <div class="user-info">
-        <div class="avatar"></div>
-        <span id="display-nick" style="font-weight:bold">Player...</span>
-    </div>
-    <div class="wallet">💎 <span id="balance">1000</span></div>
-</header>
+    <!-- Вкладка Игры -->
+    <div id="game-page" style="display: flex; flex-direction: column; height: 100%;">
+        <div class="header">
+            <div class="user-info">
+                <div class="avatar"></div>
+                <div id="display-name" style="font-weight: bold;">Player</div>
+            </div>
+            <div class="balance">
+                <span style="color: #4c94ff;">💎</span>
+                <span id="user-balance">0.00</span>
+            </div>
+        </div>
 
-<!-- ЭКРАН ИГРЫ -->
-<div id="crash-screen" style="display: flex; flex-direction: column; flex: 1;">
-    <div class="game-window">
-        <canvas id="c"></canvas>
-        <div class="mult-overlay" id="mult">x1.00</div>
-    </div>
-    <div class="h-row" id="h-row"></div>
-    <div class="controls">
-        <button class="bet-btn" id="btn">ПОДКЛЮЧЕНИЕ...</button>
-    </div>
-    <div class="p-list" id="p-list"></div>
-</div>
+        <div class="game-container">
+            <div id="multiplier">x1.00</div>
+            <div id="game-status">Waiting for bets</div>
+        </div>
 
-<!-- ЭКРАН ПРОФИЛЯ -->
-<div id="profile-modal">
-    <div class="modal-card">
-        <h3>Мой Профиль</h3>
-        <input type="text" id="nick-input" placeholder="Введите никнейм">
-        <button class="bet-btn" onclick="saveNick()">Сохранить</button>
-        <p onclick="closeProfile()" style="margin-top:20px; color:var(--dim); font-size:14px">Назад к игре</p>
-    </div>
-</div>
+        <div class="history-bar" id="history"></div>
 
-<nav>
-    <div class="nav-item active" onclick="showScreen('crash')"><span style="font-size:20px">🚀</span>Crash</div>
-    <div class="nav-item" onclick="showScreen('profile')"><span style="font-size:20px">👤</span>Profile</div>
-</nav>
+        <div class="action-area">
+            <button id="mainBtn" class="main-btn btn-waiting" onclick="handleBtnClick()">Waiting for bets</button>
+        </div>
+
+        <div class="players-section">
+            <div style="font-size: 12px; color: var(--gray); margin-bottom: 10px;">LIVE BETS</div>
+            <div id="players-list"></div>
+        </div>
+    </div>
+
+    <!-- Вкладка Профиля -->
+    <div id="profile-page">
+        <h2>Настройки профиля</h2>
+        <div class="profile-card">
+            <label>Изменить никнейм:</label>
+            <input type="text" id="nameInput" placeholder="Введите имя...">
+            <button class="main-btn btn-waiting" onclick="updateProfile()">Сохранить</button>
+        </div>
+    </div>
+
+    <!-- Навигация -->
+    <div class="tab-bar">
+        <div class="tab-item active" onclick="switchTab('game')">
+            <span class="tab-icon">🚀</span> Crash
+        </div>
+        <div class="tab-item" onclick="switchTab('profile')">
+            <span class="tab-icon">👤</span> Profile
+        </div>
+    </div>
+
+    <!-- Модалка ставки -->
+    <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
+    <div class="modal" id="betModal">
+        <h3>Установить ставку</h3>
+        <input type="number" id="betInput" placeholder="0.00" step="0.01">
+        <button class="main-btn btn-waiting" onclick="confirmBet()">Place Bet</button>
+        <div style="text-align: center; margin-top: 15px; color: var(--gray);" onclick="closeModal()">Закрыть</div>
+    </div>
 
 <script>
     const socket = io();
-    const canv = document.getElementById('c'), ctx = canv.getContext('2d');
-    const bBtn = document.getElementById('btn'), mDisp = document.getElementById('mult');
-    
-    let st = 'WAIT', mult = 1.00, bal = 1000.0;
-    let myNick = localStorage.getItem('n') || "Player" + Math.floor(100 + Math.random() * 899);
-    let stars = [], trail = [];
+    let currentStatus = 'WAIT';
+    let hasBetForCurrentRound = false;
+    let hasBetForNextRound = false;
 
-    // Инициализация
-    localStorage.setItem('n', myNick);
-    document.getElementById('display-nick').innerText = myNick;
-    document.getElementById('nick-input').value = myNick;
+    // --- Логика Socket.io ---
 
-    function showScreen(type) {
-        if(type === 'profile') document.getElementById('profile-modal').style.display = 'flex';
-        else document.getElementById('profile-modal').style.display = 'none';
-    }
-    function closeProfile() { showScreen('crash'); }
-    function saveNick() {
-        const val = document.getElementById('nick-input').value;
-        if(val) {
-            myNick = val;
-            localStorage.setItem('n', val);
-            document.getElementById('display-nick').innerText = val;
-            socket.emit('join', { name: val });
-            closeProfile();
-        }
-    }
-
-    function res() { 
-        canv.width = canv.offsetWidth; canv.height = canv.offsetHeight;
-        stars = []; for(let i=0; i<30; i++) stars.push({x:Math.random()*canv.width, y:Math.random()*canv.height, s:Math.random()*1.5});
-    }
-    window.onresize = res; res();
-
-    function draw(m) {
-        ctx.clearRect(0,0,canv.width, canv.height);
-        // Сетка
-        ctx.strokeStyle = 'rgba(196, 255, 0, 0.03)'; ctx.lineWidth = 0.5;
-        for(let i=0; i<canv.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canv.height); ctx.stroke(); }
-        for(let i=0; i<canv.height; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+    socket.on('gameState', (data) => {
+        currentStatus = data.state;
+        updateUI();
+        if (data.history) updateHistory(data.history);
         
-        stars.forEach(s => {
-            s.y += (st === 'FLY' ? m*0.4 : 0.2); if(s.y > canv.height) s.y = 0;
-            ctx.fillStyle = '#333'; ctx.fillRect(s.x, s.y, s.s, s.s);
-        });
+        if (data.state === 'WAIT') {
+            // Если была ставка "на следующий раунд", она становится активной
+            if (hasBetForNextRound) {
+                hasBetForCurrentRound = true;
+                hasBetForNextRound = false;
+            } else {
+                hasBetForCurrentRound = false;
+            }
+            document.getElementById('players-list').innerHTML = ''; // Чистим список
+            updateUI();
+        }
+    });
 
-        if(st === 'FLY') {
-            let p = Math.min((m - 1) / 5, 1);
-            let x = 60 + p * (canv.width - 120), y = canv.height - 60 - p * (canv.height - 120);
-            ctx.strokeStyle = '#c4ff00'; ctx.lineWidth = 3; ctx.beginPath();
-            ctx.moveTo(40, canv.height-40); ctx.quadraticCurveTo(canv.width/2, canv.height-40, x, y); ctx.stroke();
-            ctx.font = '50px Arial'; ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI/4 * p);
-            ctx.fillText('🚀', -25, 25); ctx.restore();
+    socket.on('tick', (data) => {
+        const multEl = document.getElementById('multiplier');
+        const statusEl = document.getElementById('game-status');
+        
+        if (currentStatus === 'WAIT') {
+            multEl.innerText = `x1.00`;
+            statusEl.innerText = `Starting in ${data.timer}s`;
+        } else if (currentStatus === 'FLY') {
+            multEl.innerText = `x${data.multiplier}`;
+            statusEl.innerText = `Rocket is flying`;
+            multEl.style.transform = `scale(${1 + data.multiplier * 0.02})`;
+        }
+    });
+
+    socket.on('playerAction', (data) => {
+        const list = document.getElementById('players-list');
+        const row = document.createElement('div');
+        row.className = 'player-row';
+        row.innerHTML = `<div class="p-name"><div class="avatar" style="width:20px;height:20px"></div> ${data.name}</div>
+                         <div class="p-bet">💎 ${data.bet}</div>`;
+        list.prepend(row);
+    });
+
+    // --- Управление UI ---
+
+    function updateUI() {
+        const btn = document.getElementById('mainBtn');
+        const multEl = document.getElementById('multiplier');
+        const statusEl = document.getElementById('game-status');
+
+        btn.className = 'main-btn'; // Сброс классов
+
+        if (currentStatus === 'WAIT') {
+            multEl.classList.remove('crashed-text');
+            if (hasBetForCurrentRound || hasBetForNextRound) {
+                btn.innerText = "BET PLACED";
+                btn.classList.add('btn-placed');
+            } else {
+                btn.innerText = "Waiting for bets";
+                btn.classList.add('btn-waiting');
+            }
+        } 
+        
+        else if (currentStatus === 'FLY') {
+            if (hasBetForCurrentRound) {
+                btn.innerText = "CASH OUT";
+                btn.classList.add('btn-cashout');
+            } else if (hasBetForNextRound) {
+                btn.innerText = "PLACED FOR NEXT";
+                btn.classList.add('btn-placed');
+            } else {
+                btn.innerText = "Wait for next round";
+                btn.classList.add('btn-placed');
+            }
+        } 
+        
+        else if (currentStatus === 'CRASH') {
+            multEl.classList.add('crashed-text');
+            statusEl.innerText = "Crashed!";
+            btn.innerText = "Boom!";
+            btn.classList.add('btn-placed');
         }
     }
 
-    socket.on('connect', () => {
-        bBtn.innerText = 'ОЖИДАНИЕ...';
-        socket.emit('join', { name: myNick });
-    });
-
-    socket.on('gameState', (d) => {
-        st = d.state;
-        if(st === 'WAIT') {
-            mult = 1.0; mDisp.innerText = 'x1.00'; mDisp.style.color = '#c4ff00';
-            bBtn.innerText = 'ПОСТАВИТЬ'; bBtn.disabled = false; bBtn.style.background = '#c4ff00';
-            document.getElementById('p-list').innerHTML = '';
-        }
-        if(st === 'CRASH') {
-            mDisp.innerText = 'CRASH!'; mDisp.style.color = '#ff3e3e';
-            bBtn.disabled = true; bBtn.style.background = '#1a1a1a';
-            if(d.history) {
-                document.getElementById('h-row').innerHTML = d.history.slice(0,8).map(v => `<div class="h-tag">${v}x</div>`).join('');
+    function handleBtnClick() {
+        if (currentStatus === 'WAIT') {
+            if (!hasBetForCurrentRound) openModal();
+        } else if (currentStatus === 'FLY') {
+            if (hasBetForCurrentRound) {
+                socket.emit('cashOut');
+                hasBetForCurrentRound = false;
+                updateUI();
+            } else if (!hasBetForNextRound) {
+                openModal(); // Ставка в полете на след. раунд
             }
         }
-    });
+    }
 
-    socket.on('tick', (d) => {
-        if(d.multiplier && st === 'FLY') {
-            mult = parseFloat(d.multiplier);
-            mDisp.innerText = 'x' + mult.toFixed(2);
-            draw(mult);
-            if(bBtn.innerText === 'ГОТОВО') {
-                bBtn.disabled = false; bBtn.style.background = '#0088ff'; bBtn.style.color = '#fff';
-                bBtn.innerText = 'ЗАБРАТЬ x' + mult.toFixed(2);
-            }
+    function confirmBet() {
+        const amount = document.getElementById('betInput').value;
+        if (amount > 0) {
+            socket.emit('placeBet', { bet: amount });
+            if (currentStatus === 'WAIT') hasBetForCurrentRound = true;
+            else hasBetForNextRound = true;
+            closeModal();
+            updateUI();
         }
-        if(st === 'WAIT' && d.timer) bBtn.innerText = 'ВЗЛЕТ ЧЕРЕЗ ' + d.timer + 'с';
-    });
+    }
 
-    bBtn.onclick = () => {
-        if(st === 'WAIT') {
-            socket.emit('placeBet', { bet: 100, name: myNick });
-            bBtn.innerText = 'ГОТОВО'; bBtn.disabled = true; bBtn.style.background = '#1a1a1a';
-        } else if(st === 'FLY') {
-            socket.emit('cashOut');
-            bBtn.innerText = 'ЗАБРАНО!'; bBtn.disabled = true;
+    function updateHistory(history) {
+        const hDiv = document.getElementById('history');
+        hDiv.innerHTML = history.map(val => `<div class="hist-item">${val}x</div>`).join('');
+    }
+
+    // --- Навигация и Профиль ---
+
+    function switchTab(tab) {
+        document.getElementById('game-page').style.display = tab === 'game' ? 'flex' : 'none';
+        document.getElementById('profile-page').style.display = tab === 'profile' ? 'flex' : 'none';
+        document.querySelectorAll('.tab-item').forEach((el, i) => {
+            el.classList.toggle('active', (tab === 'game' && i === 0) || (tab === 'profile' && i === 1));
+        });
+    }
+
+    function updateProfile() {
+        const newName = document.getElementById('nameInput').value;
+        if (newName) {
+            socket.emit('join', { name: newName });
+            document.getElementById('display-name').innerText = newName;
+            alert('Никнейм изменен!');
         }
-    };
+    }
 
-    setInterval(() => { if(st !== 'FLY') draw(1); }, 60);
+    function openModal() {
+        document.getElementById('betModal').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('betModal').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+    }
 </script>
 </body>
 </html>
