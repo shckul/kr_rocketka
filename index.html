@@ -2,214 +2,216 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rocket Elite</title>
-    <script src="https://cdn.socket.io"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rocket Elite Player</title>
+    <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root {
-            --bg: #0d1117; --card: #161b22; --accent: #58a6ff;
-            --win: #238636; --loss: #da3633; --text: #c9d1d9;
-        }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        :root { --bg: #0b0e11; --card: #1e2329; --accent: #f0b90b; --win: #02c076; --loss: #cf304a; --text: #eaecef; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Шапка */
-        header { display: flex; justify-content: space-between; padding: 10px 20px; background: var(--card); border-bottom: 1px solid #30363d; align-items: center; }
-        .nav-btns { display: flex; gap: 10px; }
+        /* Шапка с Профилем */
+        header { display: flex; justify-content: space-between; padding: 10px 15px; background: var(--card); border-bottom: 1px solid #2b3139; align-items: center; }
+        .user-info { display: flex; flex-direction: column; gap: 2px; }
+        #nick-display { font-weight: bold; color: var(--accent); font-size: 0.9rem; cursor: pointer; }
+        .record { font-size: 0.75rem; color: #848e9c; }
+        .balance { font-weight: bold; font-size: 1.1rem; color: var(--win); }
 
-        /* Основной контент */
-        .game-layout { display: flex; flex: 1; overflow: hidden; }
-        .sidebar { width: 260px; background: var(--card); border-right: 1px solid #30363d; display: flex; flex-direction: column; padding: 15px; }
-        .main-zone { flex: 1; display: flex; flex-direction: column; padding: 20px; position: relative; }
-
-        /* Игровая область */
-        .canvas-container { flex: 1; background: #000; border-radius: 12px; position: relative; overflow: hidden; border: 1px solid #30363d;
-            background-image: linear-gradient(rgba(88,166,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(88,166,255,0.1) 1px, transparent 1px);
-            background-size: 50px 50px; }
-        #multiplier { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 70px; font-weight: 900; z-index: 5; pointer-events: none; }
+        /* Игровая зона с сеткой */
+        .game-area { position: relative; flex: 1; background: #000; overflow: hidden; }
+        .grid { position: absolute; width: 200%; height: 200%; top: -50%; left: -50%; 
+                background-image: linear-gradient(rgba(240, 185, 11, 0.05) 1px, transparent 1px), 
+                                  linear-gradient(90deg, rgba(240, 185, 11, 0.05) 1px, transparent 1px);
+                background-size: 50px 50px; transform: rotate(-5deg); pointer-events: none; }
         
-        /* Кнопки и формы */
-        .controls { background: var(--card); padding: 20px; border-radius: 12px; margin-top: 15px; display: flex; gap: 10px; }
-        input, button.action { padding: 12px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; }
-        .btn { cursor: pointer; border: none; font-weight: bold; transition: 0.2s; padding: 8px 15px; border-radius: 6px; }
-        .btn-blue { background: var(--accent); color: white; }
-        .btn-green { background: var(--win); color: white; width: 150px; }
-        .btn-gray { background: #30363d; color: #8b949e; }
+        canvas { position: absolute; width: 100%; height: 100%; }
+        #mult-display { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); 
+                        font-size: 4.5rem; font-weight: 900; z-index: 5; text-shadow: 0 0 30px rgba(0,0,0,0.9); }
+        #timer-box { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); 
+                     background: rgba(240, 185, 11, 0.15); padding: 8px 20px; border-radius: 30px; 
+                     border: 1px solid var(--accent); font-weight: bold; display: none; z-index: 6; }
 
-        /* Модальные окна */
+        /* История коэффициентов */
+        .history-bar { display: flex; gap: 8px; overflow-x: auto; padding: 8px 15px; background: #161a1e; border-bottom: 1px solid #2b3139; }
+        .h-item { padding: 4px 12px; background: #2b3139; border-radius: 15px; font-size: 0.8rem; font-weight: bold; }
+
+        /* Управление ставками */
+        .controls { background: var(--card); padding: 15px; display: flex; flex-direction: column; gap: 12px; border-top: 1px solid #2b3139; }
+        .bet-input-wrap { position: relative; display: flex; width: 100%; }
+        input { background: #2b3139; border: 1px solid #474d57; color: #fff; padding: 15px; border-radius: 10px; width: 100%; font-size: 1.1rem; box-sizing: border-box; }
+        .btn-main { background: var(--accent); color: #000; border: none; padding: 18px; border-radius: 10px; font-weight: bold; font-size: 1.2rem; cursor: pointer; transition: 0.2s; }
+        .btn-main:disabled { background: #474d57; color: #848e9c; }
+        
+        /* Модалка профиля */
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card); 
-            padding: 25px; border-radius: 12px; border: 1px solid var(--accent); z-index: 100; min-width: 300px; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 99; }
-        .modal h3 { margin-top: 0; color: var(--accent); }
+                 padding: 25px; border-radius: 15px; border: 1px solid var(--accent); z-index: 100; width: 80%; max-width: 300px; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 99; }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: bold; color: var(--accent);">ROCKET CRASH</div>
-    <div class="nav-btns">
-        <button class="btn btn-gray" onclick="toggleModal('profileModal')">Профиль</button>
-        <button class="btn btn-gray" onclick="toggleModal('settingsModal')">Настройки</button>
+    <div class="user-info" onclick="openProfile()">
+        <span id="nick-display">Нажми, чтобы ник</span>
+        <span class="record">Рекорд: <b id="best-val">1.00</b>x</span>
     </div>
+    <div class="balance"><span id="bal-val">1000.00</span> ₽</div>
 </header>
 
-<div class="game-layout">
-    <div class="sidebar">
-        <h4>История</h4>
-        <div id="history" style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 20px;"></div>
-        <h4>Игроки онлайн</h4>
-        <div id="playersList" style="font-size: 14px; overflow-y: auto;"></div>
-    </div>
+<div id="history-list" class="history-bar"></div>
 
-    <div class="main-zone">
-        <div class="canvas-container">
-            <canvas id="gameCanvas"></canvas>
-            <div id="multiplier">1.00x</div>
-        </div>
-        <div class="controls">
-            <input type="number" id="betInput" value="100" style="flex: 1;">
-            <button id="mainBtn" class="btn btn-blue" style="flex: 2; font-size: 1.1rem;">Сделать ставку</button>
-        </div>
-    </div>
+<div class="game-area">
+    <div class="grid"></div>
+    <div id="timer-box">Ждем взлета: <span id="timer-sec">5.0</span>с</div>
+    <canvas id="game-canvas"></canvas>
+    <div id="mult-display">1.00x</div>
 </div>
 
-<!-- Модалка Профиля -->
-<div class="modal-overlay" id="overlay" onclick="closeAllModals()"></div>
-<div class="modal" id="profileModal">
-    <h3>Личный кабинет</h3>
-    <p>Никнейм: <input type="text" id="usernameInput" style="width: 80%; margin-top: 5px;"></p>
-    <p>Ваш рекорд: <span id="bestRecord" style="color: gold;">1.00x</span></p>
-    <button class="btn btn-blue" onclick="saveProfile()">Сохранить</button>
+<div class="controls">
+    <div class="bet-input-wrap">
+        <input type="number" id="bet-amount" value="100">
+    </div>
+    <button id="action-btn" class="btn-main">Сделать ставку</button>
 </div>
 
-<!-- Модалка Настроек -->
-<div class="modal" id="settingsModal">
-    <h3>Настройки</h3>
-    <div style="margin-bottom: 10px;">
-        <label><input type="checkbox" checked> Звуковые эффекты</label>
-    </div>
-    <div style="margin-bottom: 15px;">
-        <label><input type="checkbox" checked> Плавная анимация</label>
-    </div>
-    <button class="btn btn-gray" onclick="closeAllModals()">Закрыть</button>
+<!-- Профиль -->
+<div class="overlay" id="overlay" onclick="closeProfile()"></div>
+<div class="modal" id="profile-modal">
+    <h3 style="margin-top:0">Ваш Профиль</h3>
+    <p style="font-size:0.9rem">Изменить никнейм:</p>
+    <input type="text" id="new-nick" placeholder="Введите имя..." style="margin-bottom:15px">
+    <button class="btn-main" style="width:100%; padding:10px" onclick="saveNick()">Сохранить</button>
 </div>
 
 <script>
     const socket = io();
-    const canvas = document.getElementById('gameCanvas');
+    const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
-    const mainBtn = document.getElementById('mainBtn');
-    const multText = document.getElementById('multiplier');
-    const playersList = document.getElementById('playersList');
+    const multDisp = document.getElementById('mult-display');
+    const timerBox = document.getElementById('timer-box');
+    const actionBtn = document.getElementById('action-btn');
+    const balVal = document.getElementById('bal-val');
+    const nickDisp = document.getElementById('nick-display');
+    const bestDisp = document.getElementById('best-val');
 
-    let gameState = 'waiting';
-    let myBet = null;
-    let userData = {
-        name: localStorage.getItem('rocketName') || 'Gamer_' + Math.floor(Math.random()*999),
-        best: parseFloat(localStorage.getItem('rocketBest')) || 1.0
-    };
+    let state = 'WAIT';
+    let balance = parseFloat(localStorage.getItem('rocket_bal')) || 1000.00;
+    let myNick = localStorage.getItem('rocket_nick') || "Пилот_" + Math.floor(Math.random()*999);
+    let myBest = parseFloat(localStorage.getItem('rocket_best')) || 1.00;
+    let currentMultiplier = 1.00;
 
-    // Инициализация профиля
-    document.getElementById('usernameInput').value = userData.name;
-    document.getElementById('bestRecord').innerText = userData.best.toFixed(2) + 'x';
+    // Инициализация данных
+    balVal.innerText = balance.toFixed(2);
+    nickDisp.innerText = myNick;
+    bestDisp.innerText = myBest.toFixed(2);
+    socket.emit('join', { name: myNick });
 
-    function toggleModal(id) {
+    function openProfile() { 
         document.getElementById('overlay').style.display = 'block';
-        document.getElementById(id).style.display = 'block';
+        document.getElementById('profile-modal').style.display = 'block';
+        document.getElementById('new-nick').value = myNick;
+    }
+    function closeProfile() {
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('profile-modal').style.display = 'none';
+    }
+    function saveNick() {
+        const val = document.getElementById('new-nick').value;
+        if(val) {
+            myNick = val;
+            localStorage.setItem('rocket_nick', val);
+            nickDisp.innerText = val;
+            socket.emit('join', { name: val });
+            closeProfile();
+        }
     }
 
-    function closeAllModals() {
-        document.querySelectorAll('.modal, .modal-overlay').forEach(el => el.style.display = 'none');
-    }
-
-    function saveProfile() {
-        userData.name = document.getElementById('usernameInput').value;
-        localStorage.setItem('rocketName', userData.name);
-        socket.emit('updateName', { name: userData.name }); // Отправляем серверу новое имя
-        closeAllModals();
-    }
-
-    // Ресайз канваса
-    function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
-    window.onresize = resize; resize();
-
-    function drawRocket(mult) {
+    // Отрисовка
+    function draw(m) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (gameState !== 'flying') return;
-        const progress = Math.min((mult - 1) / 5, 1);
-        const x = progress * (canvas.width - 120) + 60;
-        const y = canvas.height - (Math.pow(progress, 1.4) * (canvas.height - 120) + 60);
+        if (state !== 'FLY') return;
+        let p = Math.min((m - 1) / 5, 1);
+        let x = 60 + p * (canvas.width - 120);
+        let y = canvas.height - 60 - p * (canvas.height - 120);
         
-        ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 3; ctx.beginPath();
-        ctx.moveTo(50, canvas.height - 50); ctx.quadraticCurveTo(canvas.width/2, canvas.height-50, x, y); ctx.stroke();
-        
-        ctx.font = '50px serif'; ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 4);
-        ctx.fillText('🚀', -25, 25); ctx.restore();
+        ctx.strokeStyle = '#f0b90b'; ctx.lineWidth = 4; ctx.beginPath();
+        ctx.moveTo(60, canvas.height - 60);
+        ctx.quadraticCurveTo(canvas.width/2, canvas.height-60, x, y);
+        ctx.stroke();
+
+        ctx.font = '45px Arial';
+        ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI/4 * p);
+        ctx.fillText('🚀', -22, 22); ctx.restore();
     }
 
-    // Слушаем сервер на предмет реальных игроков
-    socket.on('playersUpdate', (list) => {
-        playersList.innerHTML = list.map(p => `<div style="padding:5px; border-bottom:1px solid #21262d;">👤 ${p.name}</div>`).join('');
-    });
-
-    socket.on('multiplierUpdate', (data) => {
-        gameState = 'flying';
-        multText.innerText = data.multiplier.toFixed(2) + 'x';
-        multText.style.color = 'white';
-        drawRocket(data.multiplier);
-
-        if (myBet && !myBet.cashedOut) {
-            mainBtn.innerText = `ЗАБРАТЬ ${(document.getElementById('betInput').value * data.multiplier).toFixed(2)}`;
-            mainBtn.className = 'btn btn-green';
-        } else {
-            mainBtn.className = 'btn btn-gray';
-            mainBtn.innerText = 'В полете...';
+    socket.on('gameState', (data) => {
+        state = data.state;
+        if(state === 'WAIT') {
+            timerBox.style.display = 'block';
+            multDisp.innerText = "1.00x";
+            multDisp.style.color = "#fff";
+            actionBtn.disabled = false;
+            actionBtn.innerText = "Сделать ставку";
+            actionBtn.style.background = "var(--accent)";
+        }
+        if(state === 'FLY') timerBox.style.display = 'none';
+        if(state === 'CRASH') {
+            multDisp.innerText = "CRASH " + data.multiplier + "x";
+            multDisp.style.color = "var(--loss)";
+            updateHistory(data.history);
         }
     });
 
-    socket.on('gameCrash', (data) => {
-        gameState = 'crashed';
-        multText.innerText = 'CRASHED';
-        multText.style.color = '#da3633';
-        mainBtn.className = 'btn btn-gray';
-        mainBtn.innerText = 'Взрыв!';
-        
-        // История
-        const h = document.getElementById('history');
-        const item = document.createElement('div');
-        item.style = `padding:3px 6px; background:#21262d; border-radius:4px; font-size:12px; color:${data.multiplier > 2 ? '#238636' : '#8b949e'}`;
-        item.innerText = data.multiplier.toFixed(2) + 'x';
-        h.prepend(item);
-        
-        setTimeout(() => {
-            gameState = 'waiting';
-            mainBtn.className = 'btn btn-blue';
-            mainBtn.innerText = 'Сделать ставку';
-            myBet = null;
-        }, 2500);
-    });
-
-    mainBtn.onclick = () => {
-        if (gameState === 'waiting' && !myBet) {
-            const amount = document.getElementById('betInput').value;
-            socket.emit('placeBet', { amount, name: userData.name });
-            myBet = { amount, cashedOut: false };
-            mainBtn.innerText = 'Ожидаем взлета...';
-            mainBtn.className = 'btn btn-gray';
-        } else if (gameState === 'flying' && myBet && !myBet.cashedOut) {
-            const winMult = parseFloat(multText.innerText);
-            socket.emit('cashout');
-            myBet.cashedOut = true;
-            mainBtn.innerText = 'Выигрыш взят!';
-            mainBtn.className = 'btn btn-gray';
-
-            // Проверка рекорда
-            if (winMult > userData.best) {
-                userData.best = winMult;
-                localStorage.setItem('rocketBest', winMult);
-                document.getElementById('bestRecord').innerText = winMult.toFixed(2) + 'x';
+    socket.on('tick', (data) => {
+        if(data.timer) document.getElementById('timer-sec').innerText = data.timer;
+        if(data.multiplier) {
+            currentMultiplier = parseFloat(data.multiplier);
+            if(state === 'FLY') {
+                multDisp.innerText = currentMultiplier.toFixed(2) + "x";
+                draw(currentMultiplier);
+                if(actionBtn.innerText === "СТАВКА ПРИНЯТА") {
+                    actionBtn.disabled = false;
+                    actionBtn.innerText = "ЗАБРАТЬ " + (parseFloat(document.getElementById('bet-amount').value) * currentMultiplier).toFixed(2);
+                    actionBtn.style.background = "var(--win)";
+                    actionBtn.style.color = "#fff";
+                }
             }
         }
+    });
+
+    function updateHistory(list) {
+        const hl = document.getElementById('history-list');
+        hl.innerHTML = list.slice(0, 12).map(v => `<div class="h-item" style="color:${v > 2 ? 'var(--win)' : '#848e9c'}">${v}x</div>`).join('');
+    }
+
+    actionBtn.onclick = () => {
+        const bet = parseFloat(document.getElementById('bet-amount').value);
+        if(state === 'WAIT' && balance >= bet) {
+            balance -= bet;
+            localStorage.setItem('rocket_bal', balance);
+            balVal.innerText = balance.toFixed(2);
+            socket.emit('placeBet', { bet: bet, name: myNick });
+            actionBtn.disabled = true;
+            actionBtn.innerText = "СТАВКА ПРИНЯТА";
+        } else if(state === 'FLY' && actionBtn.innerText.includes("ЗАБРАТЬ")) {
+            let win = bet * currentMultiplier;
+            balance += win;
+            localStorage.setItem('rocket_bal', balance);
+            balVal.innerText = balance.toFixed(2);
+            
+            if(currentMultiplier > myBest) {
+                myBest = currentMultiplier;
+                localStorage.setItem('rocket_best', myBest);
+                bestDisp.innerText = myBest.toFixed(2);
+            }
+            
+            socket.emit('cashOut');
+            actionBtn.disabled = true;
+            actionBtn.innerText = "ВЫИГРЫШ!";
+        }
     };
+
+    function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
+    window.onresize = resize; resize();
 </script>
 </body>
 </html>
