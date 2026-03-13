@@ -8,35 +8,20 @@
     <style>
         :root { --acid: #ccff00; --bg: #000; --panel: #0a0a0a; --border: #1a1a1a; }
         body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
         header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid var(--border); height: 50px; background: #050505; }
         .logo { color: var(--acid); font-weight: 900; font-size: 1rem; }
-        
         .history-top { display: flex; gap: 8px; padding: 8px 15px; overflow-x: auto; background: #000; border-bottom: 1px solid var(--border); height: 35px; align-items: center; scrollbar-width: none; }
         .h-badge { padding: 2px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; border: 1px solid var(--acid); flex-shrink: 0; color: var(--acid); background: rgba(204, 255, 0, 0.05); }
-
         .game-viewport { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px; }
         .game-window { width: 100%; max-width: 380px; aspect-ratio: 16/10; background: #000; border: 2px solid var(--border); border-radius: 12px; position: relative; overflow: hidden; margin-bottom: 5px; }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        
         #mult-display { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 3.5rem; font-weight: 900; color: var(--acid); display: none; z-index: 10; text-shadow: 0 0 20px var(--acid); }
         #timer-display { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 3.5rem; color: #fff; font-weight: bold; z-index: 10; }
-
-        .tabs { display: flex; width: 100%; max-width: 380px; gap: 5px; margin-bottom: 5px; }
-        .tab { flex: 1; padding: 7px; background: var(--panel); border: 1px solid var(--border); color: #444; border-radius: 6px; font-size: 0.7rem; font-weight: bold; text-align: center; cursor: pointer; }
-        .tab.active { color: var(--acid); border-color: var(--acid); }
-
         .list-box { width: 100%; max-width: 380px; background: var(--panel); border-radius: 10px; border: 1px solid var(--border); height: 115px; overflow-y: auto; margin-bottom: 10px; }
         .row { display: flex; justify-content: space-between; padding: 8px 15px; border-bottom: 1px solid #111; font-size: 0.8rem; }
         .is-me { border-left: 3px solid var(--acid); background: rgba(204, 255, 0, 0.1); }
-
-        .controls { width: 100%; max-width: 380px; padding-bottom: 15px; }
-        .input-row { display: flex; gap: 10px; margin-bottom: 10px; width: 100%; }
-        .input-group { flex: 1; position: relative; display: flex; flex-direction: column; }
-        .input-group label { position: absolute; top: -7px; left: 10px; background: #000; padding: 0 5px; font-size: 0.6rem; color: #444; font-weight: bold; }
-        input { width: 100%; background: #000; border: 1px solid var(--border); color: var(--acid); padding: 12px; border-radius: 10px; outline: none; text-align: center; font-weight: bold; font-size: 1rem; }
+        input { width: 100%; background: #000; border: 1px solid var(--border); color: var(--acid); padding: 12px; border-radius: 10px; outline: none; text-align: center; font-weight: bold; font-size: 1rem; margin-bottom: 10px; }
         #action-btn { width: 100%; background: var(--acid); color: #000; border: none; padding: 18px; border-radius: 12px; font-weight: 900; font-size: 1.1rem; cursor: pointer; }
-
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; align-items: center; justify-content: center; }
         .modal-content { background: var(--panel); border: 1px solid var(--acid); padding: 25px; border-radius: 20px; width: 280px; text-align: center; }
     </style>
@@ -46,61 +31,45 @@
 <header>
     <div style="font-size:1.2rem; color:var(--acid)">💰</div>
     <div class="logo">🚀 KR ROCKET LIVE</div>
-    <div style="display:flex; align-items:center; gap:10px; cursor:pointer" onclick="toggleModal()">
-        <span id="bal-val" style="color:var(--acid); font-weight:bold;">1000.00</span>
-        <div style="font-size:1.2rem; color:var(--acid)">👤</div>
-    </div>
+    <div id="bal-val" style="color:var(--acid); font-weight:bold; cursor:pointer" onclick="toggleModal()">1000.00</div>
 </header>
 
 <div class="history-top" id="history-list"></div>
 
 <div class="game-viewport">
     <div class="game-window">
-        <canvas id="bg-canvas"></canvas>
         <canvas id="game-canvas"></canvas>
         <div id="mult-display">1.00x</div>
         <div id="timer-display">5.00</div>
     </div>
-
-    <div class="tabs">
-        <div class="tab active" id="tab-bets" onclick="switchTab('bets')">BETS</div>
-        <div class="tab" id="tab-chat" onclick="switchTab('chat')">CHAT</div>
-    </div>
-
     <div class="list-box" id="list-content"></div>
-
-    <div class="controls">
-        <div class="input-row">
-            <div class="input-group"><label>BET</label><input type="number" id="bet" value="10"></div>
-            <div class="input-group"><label>AUTO</label><input type="number" id="auto" value="0"></div>
-        </div>
+    <div class="controls" style="width:100%; max-width:380px;">
+        <input type="number" id="bet" value="10">
         <button id="action-btn">ПОСТАВИТЬ</button>
     </div>
 </div>
 
 <div id="modal" class="modal">
     <div class="modal-content">
-        <h3 style="color:var(--acid); margin-top:0">PROFILE</h3>
-        <input type="text" id="nick" value="Zxcursed" style="margin-bottom:10px; width: 100%;">
-        <button onclick="deposit()" style="width:100%; background:var(--acid); color:#000; border:none; padding:12px; border-radius:8px; font-weight:bold;">ПОПОЛНИТЬ +1000$</button>
-        <button onclick="toggleModal()" style="width:100%; background:transparent; color:#555; border:none; margin-top:15px;">ЗАКРЫТЬ</button>
+        <h3 style="color:var(--acid)">PROFILE</h3>
+        <input type="text" id="nick" value="Zxcursed">
+        <button onclick="deposit()" style="width:100%; background:var(--acid); border:none; padding:12px; border-radius:8px; font-weight:bold;">+1000$</button>
+        <button onclick="toggleModal()" style="color:#555; background:none; border:none; margin-top:15px;">ЗАКРЫТЬ</button>
     </div>
 </div>
 
 <script>
-    const socket = io(); 
-    const bgCanvas = document.getElementById('bg-canvas'), gameCanvas = document.getElementById('game-canvas');
-    const bgCtx = bgCanvas.getContext('2d'), gameCtx = gameCanvas.getContext('2d');
+    const socket = io();
+    const gameCanvas = document.getElementById('game-canvas'), gameCtx = gameCanvas.getContext('2d');
     const multDisp = document.getElementById('mult-display'), timerDisp = document.getElementById('timer-display');
     const actionBtn = document.getElementById('action-btn'), balDisp = document.getElementById('bal-val');
     const listContent = document.getElementById('list-content'), histList = document.getElementById('history-list');
 
-    let balance = 1000.00, state = 'WAIT', multiplier = 1.00, startTime = 0, currentTab = 'bets', myNick = "Player_" + Math.floor(Math.random()*999);
-    let stars = [], timerInterval;
+    let balance = 1000.00, state = 'WAIT', multiplier = 1.00, timerInterval, myNick = "Zxcursed";
 
     function updateNick() {
-        const newNick = document.getElementById('nick').value || myNick;
-        socket.emit('join', { name: newNick });
+        myNick = document.getElementById('nick').value || "Player";
+        socket.emit('join', { name: myNick });
     }
 
     socket.on('connect', () => { updateNick(); });
@@ -117,10 +86,10 @@
 
     actionBtn.onclick = () => {
         if(state === 'WAIT') {
-            const val = parseFloat(document.getElementById('bet').value);
-            if(balance >= val) {
-                balance -= val; balDisp.innerText = balance.toFixed(2);
-                socket.emit('placeBet', { bet: val });
+            const b = parseFloat(document.getElementById('bet').value);
+            if(balance >= b) {
+                balance -= b; balDisp.innerText = balance.toFixed(2);
+                socket.emit('placeBet', { bet: b });
                 actionBtn.innerText = "ГОТОВО"; actionBtn.disabled = true; actionBtn.style.background = "#333";
             }
         } else if(state === 'FLY') {
@@ -133,13 +102,10 @@
         state = data.state;
         if(state === 'WAIT') {
             multiplier = 1.00;
-            multDisp.style.display = 'none';
-            multDisp.innerText = "1.00x";
+            multDisp.style.display = 'none'; multDisp.innerText = "1.00x";
             timerDisp.style.display = 'block';
             startLocalTimer();
-            actionBtn.innerText = "ПОСТАВИТЬ";
-            actionBtn.disabled = false;
-            actionBtn.style.background = "var(--acid)";
+            actionBtn.innerText = "ПОСТАВИТЬ"; actionBtn.disabled = false; actionBtn.style.background = "var(--acid)";
             listContent.innerHTML = '';
         }
         if(state === 'FLY') {
@@ -147,13 +113,10 @@
             timerDisp.style.display = 'none';
             multDisp.style.display = 'block';
             if(actionBtn.innerText === "ГОТОВО") {
-                actionBtn.innerText = "ЗАБРАТЬ";
-                actionBtn.disabled = false;
-                actionBtn.style.background = "#ffaa00";
+                actionBtn.innerText = "ЗАБРАТЬ"; actionBtn.disabled = false; actionBtn.style.background = "#ffaa00";
             }
         }
         if(state === 'CRASH') {
-            clearInterval(timerInterval);
             multDisp.innerText = "BOOM! " + data.multiplier + "x";
             multDisp.style.color = "#ff3300";
             histList.innerHTML = '';
@@ -161,29 +124,27 @@
                 const b = document.createElement('div'); b.className = 'h-badge'; b.innerText = h + 'x';
                 histList.prepend(b);
             });
-            actionBtn.innerText = "КРАШ"; actionBtn.disabled = true;
         }
     });
 
     socket.on('tick', (data) => { 
         if(state === 'FLY') {
             multiplier = parseFloat(data.multiplier);
-            multDisp.innerText = multiplier.toFixed(2) + "x"; 
+            multDisp.innerText = multiplier.toFixed(2) + "x";
         }
     });
 
     socket.on('playerAction', (data) => {
-        const currentNick = document.getElementById('nick').value;
         if(data.type === 'bet') {
-            const r = document.createElement('div'); r.className = 'row' + (data.name === currentNick ? ' is-me' : ''); 
+            const r = document.createElement('div'); r.className = 'row' + (data.name === myNick ? ' is-me' : '');
             r.id = 'p-' + data.name;
-            r.innerHTML = `<span>${data.name}</span> <span class="v">${data.bet} $</span>`;
+            r.innerHTML = `<span>${data.name}</span> <span class="v">${data.bet}$</span>`;
             listContent.prepend(r);
         } else if(data.type === 'cashout') {
             const row = document.getElementById('p-' + data.name);
             if(row) {
-                row.querySelector('.v').innerHTML = `<span style="color:var(--acid); font-weight:bold">${data.mult}x</span>`;
-                if(data.name === currentNick) {
+                row.querySelector('.v').innerHTML = `<span style="color:var(--acid)">${data.mult}x</span>`;
+                if(data.name === myNick) {
                     balance += parseFloat(document.getElementById('bet').value) * parseFloat(data.mult);
                     balDisp.innerText = balance.toFixed(2);
                     actionBtn.innerText = "WIN!";
@@ -192,57 +153,43 @@
         }
     });
 
-    function drawRocket(ctx, x, y, p) {
-        ctx.save();
-        ctx.translate(x, y + Math.sin(Date.now() / 250) * 8);
-        ctx.rotate(-Math.PI / 8 * p); 
-        // ОРИГИНАЛЬНОЕ ПЛАМЯ
-        ctx.fillStyle = '#ccff00'; ctx.globalAlpha = 0.4 + Math.random()*0.3;
-        ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-30 - Math.random()*20, 5); ctx.lineTo(-10, 10); ctx.fill();
-        // ОРИГИНАЛЬНЫЙ КОРПУС
-        ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.fillRect(0,0,30,15);
-        // ОРИГИНАЛЬНЫЙ ОСТРЫЙ НОС
-        ctx.fillStyle = '#ccff00'; ctx.beginPath(); ctx.moveTo(30,0); ctx.lineTo(45,7.5); ctx.lineTo(30,15); ctx.fill();
-        ctx.restore();
-    }
-
-    function initStars() {
-        stars = [];
-        for(let i=0; i<60; i++) stars.push({ x: Math.random()*bgCanvas.width, y: Math.random()*bgCanvas.height, s: Math.random()*1.5 + 0.5, c: '#fff' });
-    }
-
     function loop() {
-        bgCtx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
-        gameCtx.clearRect(0,0,gameCanvas.width,gameCanvas.height);
-        stars.forEach(s => {
-            s.x -= (state === 'FLY' ? multiplier * 1.5 : 0.5);
-            if(s.x < 0) s.x = bgCanvas.width;
-            bgCtx.fillStyle = s.c; bgCtx.fillRect(s.x, s.y, s.s, s.s);
-        });
-        let prog = Math.min((multiplier - 1) / 5, 1);
-        if(state === 'FLY') drawRocket(gameCtx, 50 + prog*120, gameCanvas.height - 50 - prog*80, prog);
-        else drawRocket(gameCtx, 50, gameCanvas.height - 50, 0);
+        gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+        if(state === 'FLY' || state === 'CRASH') {
+            gameCtx.beginPath();
+            gameCtx.strokeStyle = state === 'CRASH' ? '#ff3300' : '#ccff00';
+            gameCtx.lineWidth = 4;
+            gameCtx.moveTo(0, gameCanvas.height);
+            
+            // Плавная кривая подъема
+            let progress = Math.min((multiplier - 1) / 5, 1);
+            let targetX = progress * gameCanvas.width;
+            let targetY = gameCanvas.height - (progress * gameCanvas.height * 0.8);
+            
+            gameCtx.quadraticCurveTo(targetX / 2, gameCanvas.height, targetX, targetY);
+            gameCtx.stroke();
+            
+            // Точка в конце линии
+            gameCtx.fillStyle = gameCtx.strokeStyle;
+            gameCtx.beginPath();
+            gameCtx.arc(targetX, targetY, 6, 0, Math.PI * 2);
+            gameCtx.fill();
+        }
         requestAnimationFrame(loop);
     }
 
     function resize() {
-        bgCanvas.width = bgCanvas.offsetWidth; bgCanvas.height = bgCanvas.offsetHeight;
-        gameCanvas.width = gameCanvas.offsetWidth; gameCanvas.height = gameCanvas.offsetHeight;
-        initStars();
+        gameCanvas.width = gameCanvas.offsetWidth;
+        gameCanvas.height = gameCanvas.offsetHeight;
     }
-    window.addEventListener('resize', resize);
-    setTimeout(() => { resize(); loop(); }, 100);
+    window.onresize = resize; resize(); loop();
 
     function toggleModal() {
         const m = document.getElementById('modal');
-        if (m.style.display === 'flex') { m.style.display = 'none'; updateNick(); }
+        if(m.style.display === 'flex') { m.style.display = 'none'; updateNick(); }
         else { m.style.display = 'flex'; }
     }
     function deposit() { balance += 1000; balDisp.innerText = balance.toFixed(2); }
-    function switchTab(t) {
-        document.getElementById('tab-bets').className = 'tab' + (t==='bets'?' active':'');
-        document.getElementById('tab-chat').className = 'tab' + (t==='chat'?' active':'');
-    }
 </script>
 </body>
 </html>
