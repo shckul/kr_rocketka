@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>KR ROCKET - MULTIPLAYER ELITE</title>
-    <script src="https://cdn.socket.io"></script>
+    <!-- ИСПРАВЛЕНО: Правильный путь к сокетам на Render -->
+    <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --acid: #ccff00; --bg: #000; --panel: #0a0a0a; --border: #1a1a1a; }
         body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -44,7 +45,7 @@
 <body>
 
 <header>
-    <div style="font-size:1.2rem; color:var(--acid)">📡</div>
+    <div style="font-size:1.2rem; color:var(--acid)">💰</div>
     <div class="logo">🚀 KR ROCKET LIVE</div>
     <div style="display:flex; align-items:center; gap:10px; cursor:pointer" onclick="toggleModal()">
         <span id="bal-val" style="color:var(--acid); font-weight:bold;">1000.00</span>
@@ -88,7 +89,8 @@
 </div>
 
 <script>
-    const socket = io(); // Подключение к твоему серверу
+    // ИСПРАВЛЕНО: Автоматическое определение хоста для сокетов
+    const socket = io(); 
     const bgCanvas = document.getElementById('bg-canvas'), gameCanvas = document.getElementById('game-canvas');
     const bgCtx = bgCanvas.getContext('2d'), gameCtx = gameCanvas.getContext('2d');
     const multDisp = document.getElementById('mult-display'), timerDisp = document.getElementById('timer-display');
@@ -99,7 +101,33 @@
     let stars = [], starsInit = false;
 
     // --- SOCKET LOGIC ---
-    socket.emit('join', { name: document.getElementById('nick').value });
+
+    // ИСПРАВЛЕНО: Регистрация игрока сразу после подключения
+    socket.on('connect', () => {
+        const nickname = document.getElementById('nick').value || myNick;
+        socket.emit('join', { name: nickname });
+    });
+
+    // ИСПРАВЛЕНО: Обработка клика по главной кнопке
+    actionBtn.onclick = () => {
+        const nickName = document.getElementById('nick').value || "Player";
+        if (state === 'WAIT') {
+            const betAmount = document.getElementById('bet').value;
+            // Уменьшаем баланс (визуально)
+            balance -= parseFloat(betAmount);
+            balDisp.innerText = balance.toFixed(2);
+            
+            socket.emit('placeBet', { bet: betAmount, name: nickName });
+            
+            actionBtn.innerText = "ГОТОВО";
+            actionBtn.style.background = "#555";
+            actionBtn.disabled = true;
+        } else if (state === 'FLY') {
+            socket.emit('cashOut');
+            actionBtn.disabled = true;
+            actionBtn.style.background = "#111";
+        }
+    };
 
     socket.on('gameState', (data) => {
         state = data.state;
@@ -116,8 +144,15 @@
             multDisp.style.display = 'block';
             multDisp.style.color = "var(--acid)";
             startTime = data.startTime;
-            if(actionBtn.innerText === "ГОТОВО") actionBtn.innerText = "ЗАБРАТЬ";
-            else { actionBtn.disabled = true; actionBtn.style.background = "#111"; }
+            // Если была ставка, даем возможность забрать
+            if(actionBtn.innerText === "ГОТОВО") {
+                actionBtn.innerText = "ЗАБРАТЬ";
+                actionBtn.disabled = false;
+                actionBtn.style.background = "#ffaa00";
+            } else { 
+                actionBtn.disabled = true; 
+                actionBtn.style.background = "#111"; 
+            }
         }
         if(state === 'CRASH') {
             multDisp.innerText = "BOOM!";
@@ -125,7 +160,7 @@
             histList.innerHTML = '';
             data.history.forEach(h => {
                 const b = document.createElement('div'); b.className = 'h-badge'; b.innerText = h + 'x';
-                histList.appendChild(b);
+                histList.prepend(b);
             });
             setTimeout(() => { if(state === 'CRASH') multDisp.innerText = "1.00x"; }, 2000);
         }
@@ -133,23 +168,40 @@
 
     socket.on('tick', (data) => { 
         multiplier = data.multiplier;
-        if(state === 'FLY') multDisp.innerText = multiplier + "x"; 
+        if(state === 'FLY') {
+            multDisp.innerText = multiplier + "x";
+            let timeLeft = (5000 - (Date.now() - startTime)) / 1000;
+            if(timeLeft > 0) timerDisp.innerText = timeLeft.toFixed(2);
+        }
     });
 
     socket.on('playerAction', (data) => {
-        if(currentTab !== 'bets') return;
         if(data.type === 'bet') {
             const r = document.createElement('div'); r.className = 'row' + (data.name === document.getElementById('nick').value ? ' is-me' : ''); 
             r.id = 'p-' + data.name;
             r.innerHTML = `<span>${data.name}</span> <span class="v">${data.bet} $</span>`;
             listContent.prepend(r);
-        } else {
+        } else if(data.type === 'cashout') {
             const row = document.getElementById('p-' + data.name);
-            if(row) row.querySelector('.v').innerHTML = `<span style="color:var(--acid); font-weight:bold">${data.mult}x</span>`;
+            if(row) {
+                row.querySelector('.v').innerHTML = `<span style="color:var(--acid); font-weight:bold">${data.mult}x</span>`;
+                // Если это мы забирали, обновляем баланс
+                if(data.name === document.getElementById('nick').value) {
+                   // Здесь можно добавить логику начисления выигрыша на клиентский баланс
+                }
+            }
         }
     });
 
-    // --- VISUAL LOGIC ---
+    // --- VISUAL LOGIC ( STARS & ROCKET ) ---
+    function resize() {
+        bgCanvas.width = bgCanvas.offsetWidth; bgCanvas.height = bgCanvas.offsetHeight;
+        gameCanvas.width = gameCanvas.offsetWidth; gameCanvas.height = gameCanvas.offsetHeight;
+        initStars();
+    }
+    window.addEventListener('resize', resize);
+    setTimeout(resize, 100);
+
     function initStars() {
         stars = [];
         for(let i=0; i<60; i++) stars.push({ x: Math.random()*bgCanvas.width, y: Math.random()*bgCanvas.height, s: Math.random()*1.5 + 0.5, c: '#fff' });
@@ -161,74 +213,48 @@
         ctx.translate(x, y + Math.sin(Date.now() / 250) * 8);
         ctx.rotate(-Math.PI / 8 * (1-p)); 
         ctx.fillStyle = '#ccff00'; ctx.globalAlpha = 0.4 + Math.random()*0.3;
-        ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-30 - (Math.random()*15), -5); ctx.lineTo(-30 - (Math.random()*15), 5); ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = '#111'; ctx.strokeStyle = '#ccff00'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(30, 0); ctx.quadraticCurveTo(15, -10, -15, -10); ctx.lineTo(-15, 10); ctx.quadraticCurveTo(15, 10, 30, 0);
-        ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-5, -10); ctx.lineTo(-18, -22); ctx.lineTo(-18, -10); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-5, 10); ctx.lineTo(-18, 22); ctx.lineTo(-18, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#ccff00'; ctx.beginPath(); ctx.arc(12, 0, 3, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-30 - Math.random()*20, 5); ctx.lineTo(-10, 10); ctx.fill();
+        ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.fillRect(0,0,30,15);
+        ctx.fillStyle = '#ccff00'; ctx.beginPath(); ctx.moveTo(30,0); ctx.lineTo(45,7.5); ctx.lineTo(30,15); ctx.fill();
         ctx.restore();
     }
 
-    function draw() {
-        bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-        let glowOpacity = state === 'WAIT' ? (0.1 + Math.sin(Date.now()/400)*0.05) : Math.min(multiplier * 0.05, 0.2);
-        let grd = bgCtx.createRadialGradient(bgCanvas.width/2, bgCanvas.height/2, 0, bgCanvas.width/2, bgCanvas.height/2, 160);
-        grd.addColorStop(0, `rgba(204, 255, 0, ${glowOpacity})`);
-        grd.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        bgCtx.fillStyle = grd; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
-
-        bgCtx.strokeStyle = '#222'; bgCtx.lineWidth = 1;
-        for(let i=0; i<bgCanvas.width; i+=40) { bgCtx.beginPath(); bgCtx.moveTo(i,0); bgCtx.lineTo(i,bgCanvas.height); bgCtx.stroke(); }
-        for(let j=0; j<bgCanvas.height; j+=40) { bgCtx.beginPath(); bgCtx.moveTo(0,j); bgCtx.lineTo(bgCanvas.width,j); bgCtx.stroke(); }
+    function loop() {
+        bgCtx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
+        gameCtx.clearRect(0,0,gameCanvas.width,gameCanvas.height);
         
-        let sSpeed = state === 'FLY' ? multiplier * 0.7 : 0.2;
         stars.forEach(s => {
-            s.x -= sSpeed * s.s; if(s.x < 0) s.x = bgCanvas.width;
-            bgCtx.fillStyle = s.c; bgCtx.beginPath(); bgCtx.arc(s.x, s.y, s.s/2, 0, 7); bgCtx.fill();
+            s.x -= (state === 'FLY' ? multiplier * 2 : 0.5);
+            if(s.x < 0) s.x = bgCanvas.width;
+            bgCtx.fillStyle = s.c; bgCtx.fillRect(s.x, s.y, s.s, s.s);
         });
 
-        gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
         if(state === 'FLY') {
-            const p = Math.min((Date.now() - startTime) / 7000, 1);
-            let tx = 40 + (gameCanvas.width - 120) * p, ty = (gameCanvas.height - 40) - (gameCanvas.height - 120) * Math.pow(p, 1.4);
-            drawRocket(gameCtx, tx, ty, p);
+            let progress = Math.min((multiplier - 1) / 5, 1);
+            drawRocket(gameCtx, 50 + progress * 100, gameCanvas.height - 50 - progress * 100, progress);
+        } else if(state === 'WAIT') {
+            drawRocket(gameCtx, 50, gameCanvas.height - 50, 0);
         }
-        requestAnimationFrame(draw);
+        
+        requestAnimationFrame(loop);
     }
-
-    // --- CONTROLS ---
-    actionBtn.onclick = () => {
-        if(state === 'WAIT') {
-            const bVal = parseFloat(document.getElementById('bet').value);
-            if(balance < bVal || bVal <= 0) return;
-            balance -= bVal; balDisp.innerText = balance.toFixed(2);
-            socket.emit('placeBet', { bet: bVal, name: document.getElementById('nick').value });
-            actionBtn.innerText = "ГОТОВО"; actionBtn.style.background = "#333";
-        } else if(state === 'FLY') {
-            socket.emit('cashOut');
-            const win = parseFloat(document.getElementById('bet').value) * multiplier;
-            balance += win; balDisp.innerText = balance.toFixed(2);
-            actionBtn.innerText = "ВЫИГРАНО!"; actionBtn.style.background = "#333";
-            actionBtn.disabled = true;
-        }
-    };
+    loop();
 
     function switchTab(t) {
         currentTab = t;
-        document.getElementById('tab-bets').className = 'tab' + (t === 'bets' ? ' active' : '');
-        document.getElementById('tab-chat').className = 'tab' + (t === 'chat' ? ' active' : '');
+        document.getElementById('tab-bets').className = 'tab' + (t==='bets'?' active':'');
+        document.getElementById('tab-chat').className = 'tab' + (t==='chat'?' active':'');
     }
 
-    function toggleModal() { document.getElementById('modal').style.display = document.getElementById('modal').style.display === 'flex' ? 'none' : 'flex'; }
-    function deposit() { balance += 1000; balDisp.innerText = balance.toFixed(2); }
-    window.onload = () => { 
-        bgCanvas.width = gameCanvas.width = bgCanvas.offsetWidth;
-        bgCanvas.height = gameCanvas.height = bgCanvas.offsetHeight;
-        initStars(); draw(); 
-    };
+    function toggleModal() {
+        const m = document.getElementById('modal');
+        m.style.display = (m.style.display === 'flex' ? 'none' : 'flex');
+    }
+
+    function deposit() {
+        balance += 1000;
+        balDisp.innerText = balance.toFixed(2);
+    }
 </script>
 </body>
 </html>
