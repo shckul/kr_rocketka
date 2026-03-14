@@ -18,7 +18,6 @@ let startTime = 0;
 let history = [];
 let players = {}; 
 
-// --- АДМИН-ПЕРЕМЕННЫЕ ---
 let forcedCrash = null; 
 const ADMIN_PASSWORD = "admin777"; 
 
@@ -37,7 +36,7 @@ function startCycle() {
 
     const waitInterval = setInterval(() => {
         waitTimer -= 0.1;
-        io.emit('tick', { timer: waitTimer.toFixed(1), multiplier: "1.00" });
+        io.emit('tick', { timer: waitTimer.toFixed(1) });
         if (waitTimer <= 0) {
             clearInterval(waitInterval);
             launchRocket();
@@ -49,19 +48,19 @@ function launchRocket() {
     gameState = 'FLY';
     startTime = Date.now();
     
-    // ЛОГИКА ПОДКУРТКИ
     if (forcedCrash !== null) {
         crashPoint = forcedCrash;
         forcedCrash = null; 
     } else {
-        crashPoint = (100 / (Math.random() * 99 + 1)) * 0.97;
+        crashPoint = (99 / (Math.random() * 98 + 1)) * 0.97;
+        if (crashPoint < 1.01) crashPoint = 1.10;
     }
     
     io.emit('gameState', { state: 'FLY', startTime });
 
     const gameLoop = setInterval(() => {
         const elapsed = (Date.now() - startTime) / 1000;
-        multiplier = Math.pow(Math.E, 0.12 * elapsed);
+        multiplier = Math.pow(Math.E, 0.12 * elapsed); // Твоя скорость 0.12
         
         if (multiplier >= crashPoint) {
             multiplier = crashPoint; 
@@ -70,7 +69,7 @@ function launchRocket() {
         } else {
             io.emit('tick', { multiplier: multiplier.toFixed(2) });
         }
-    }, 100);
+    }, 50); // Частота обновления 50мс для плавности сетки
 }
 
 function doCrash() {
@@ -78,20 +77,18 @@ function doCrash() {
     history.unshift(parseFloat(multiplier.toFixed(2)));
     if(history.length > 15) history.pop();
     io.emit('gameState', { state: 'CRASH', multiplier: multiplier.toFixed(2), history });
-    setTimeout(startCycle, 3000);
+    setTimeout(startCycle, 4000); // Пауза после краша
 }
 
 io.on('connection', (socket) => {
-    players[socket.id] = { name: "Guest", balance: 1000.00, currentBet: 0, betPlaced: false, cashedOut: false };
+    players[socket.id] = { name: "Player_" + socket.id.substr(0,4), balance: 1000.00, currentBet: 0, betPlaced: false, cashedOut: false };
     socket.emit('updateBalance', { balance: players[socket.id].balance });
 
-    socket.on('join', (data) => { if(players[socket.id]) players[socket.id].name = data.name; });
+    socket.on('join', (data) => { if(players[socket.id] && data.name) players[socket.id].name = data.name; });
 
-    // --- ОБРАБОТКА АДМИН-КОМАНД ---
     socket.on('adminCommand', (data) => {
         if (data.password !== ADMIN_PASSWORD) return;
-        if (data.action === 'instantCrash') { crashPoint = multiplier; }
-        if (data.action === 'setNextCrash') { forcedCrash = parseFloat(data.value); }
+        if (data.action === 'setNextCrash') forcedCrash = parseFloat(data.value);
         if (data.action === 'addBalance') {
             for (let id in players) {
                 if (players[id].name === data.targetName) {
@@ -104,18 +101,18 @@ io.on('connection', (socket) => {
 
     socket.on('placeBet', (data) => {
         const p = players[socket.id];
-        const amt = parseFloat(data.bet);
-        if(gameState === 'WAIT' && p && !p.betPlaced && p.balance >= amt) {
-            p.balance -= amt; p.currentBet = amt; p.betPlaced = true;
+        if(gameState === 'WAIT' && p && !p.betPlaced && p.balance >= data.bet) {
+            p.balance -= data.bet; p.currentBet = data.bet; p.betPlaced = true;
             socket.emit('updateBalance', { balance: p.balance });
-            io.emit('playerAction', { name: p.name, bet: amt, type: 'bet' });
+            io.emit('playerAction', { name: p.name, bet: data.bet, type: 'bet' });
         }
     });
 
     socket.on('cashOut', () => {
         const p = players[socket.id];
         if(gameState === 'FLY' && p && p.betPlaced && !p.cashedOut) {
-            p.balance += p.currentBet * multiplier; p.cashedOut = true;
+            const win = p.currentBet * multiplier;
+            p.balance += win; p.cashedOut = true;
             socket.emit('updateBalance', { balance: p.balance });
             io.emit('playerAction', { name: p.name, mult: multiplier.toFixed(2), type: 'cashout' });
         }
@@ -124,4 +121,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => { delete players[socket.id]; });
 });
 
-server.listen(process.env.PORT || 3000, () => console.log('Server Live'));
+server.listen(process.env.PORT || 3000, () => {
+    console.log('Server is running');
+    startCycle();
+});
