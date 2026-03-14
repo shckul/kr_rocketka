@@ -3,180 +3,266 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TON Crash</title>
+    <title>Rocket Crash TON</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root { --neon: #dfff00; --bg: #000; --card: #0a0a0a; --grid: rgba(223, 255, 0, 0.05); }
-        body { background: var(--bg); color: white; font-family: 'Inter', -apple-system, sans-serif; margin: 0; padding: 10px; overflow: hidden; }
+        :root { --neon: #dfff00; --bg: #000; --card: #0a0a0a; --red: #ff4b2b; --green: #00e676; }
+        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; margin: 0; padding: 0; overflow: hidden; }
 
-        /* Шапка */
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; }
-        .balance { background: #111; padding: 8px 16px; border-radius: 20px; display: flex; align-items: center; gap: 8px; border: 1px solid #222; font-weight: bold; }
+        /* Навигация */
+        .page { display: none; padding: 15px; height: calc(100vh - 85px); overflow-y: auto; }
+        .active-page { display: block; }
 
-        /* Игровое поле с АНИМИРОВАННОЙ СЕТКОЙ */
+        /* Хедер */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: #050505; border-bottom: 1px solid #111; z-index: 10; }
+        .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .avatar { width: 35px; height: 35px; border-radius: 50%; background: #222; border: 1px solid #333; overflow: hidden; }
+        .balance { background: #111; padding: 8px 15px; border-radius: 20px; font-weight: 800; border: 1px solid #222; font-size: 14px; color: var(--neon); cursor: pointer; }
+
+        /* Игровой экран */
         .game-view { 
-            height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            position: relative; border-radius: 24px; background: var(--card); border: 1px solid #1a1a1a; 
-            margin-top: 10px; overflow: hidden;
+            height: 260px; background: var(--card); border-radius: 24px; position: relative; 
+            margin: 5px 0 15px; overflow: hidden; border: 1px solid #1a1a1a;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-
-        .grid-bg {
+        .grid {
             position: absolute; width: 200%; height: 200%;
-            background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-            background-size: 45px 45px;
-            top: -50%; left: -50%;
-            transform: perspective(500px) rotateX(20deg);
-            z-index: 1;
+            background-image: linear-gradient(rgba(223, 255, 0, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(223, 255, 0, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px; transform: perspective(500px) rotateX(25deg); top: -50%; transition: 0.3s;
         }
+        .flying .grid { animation: moveGrid 1.2s linear infinite; }
+        @keyframes moveGrid { 0% { transform: perspective(500px) rotateX(25deg) translateY(0); } 100% { transform: perspective(500px) rotateX(25deg) translateY(40px); } }
 
-        /* Анимация полета сетки */
-        .flying .grid-bg {
-            animation: moveGrid 2s linear infinite;
-        }
+        #rocket { width: 70px; z-index: 5; display: none; filter: drop-shadow(0 0 15px var(--neon)); transition: 0.3s; }
+        .flying #rocket { display: block; animation: shake 0.15s infinite; }
+        @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -1px); } 100% { transform: translate(1px, -1px); } }
 
-        @keyframes moveGrid {
-            0% { transform: perspective(500px) rotateX(20deg) translateY(0); }
-            100% { transform: perspective(500px) rotateX(20deg) translateY(45px); }
-        }
-
-        #multiplier { font-size: 64px; font-weight: 900; color: var(--neon); z-index: 10; display: none; text-shadow: 0 0 30px rgba(223, 255, 0, 0.3); }
-        #logo { width: 90px; z-index: 10; filter: drop-shadow(0 0 15px var(--neon)); transition: 0.4s ease-in-out; }
-
-        /* Ожидание и Прогресс */
-        .wait-ui { text-align: center; z-index: 10; margin-top: 15px; }
-        .progress-bar { width: 180px; height: 5px; background: #222; border-radius: 10px; margin: 15px auto; overflow: hidden; }
+        #multiplier { font-size: 62px; font-weight: 900; color: var(--neon); z-index: 10; display: none; text-shadow: 0 0 20px rgba(223, 255, 0, 0.3); }
+        
+        /* Ожидание */
+        .wait-ui { text-align: center; z-index: 10; }
+        .progress-bar { width: 180px; height: 5px; background: #222; border-radius: 10px; margin: 12px auto; overflow: hidden; }
         #progress-fill { width: 100%; height: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); }
 
-        /* История */
-        .history { display: flex; gap: 8px; margin: 15px 0; overflow-x: auto; scrollbar-width: none; }
-        .h-item { padding: 8px 16px; background: #111; border-radius: 12px; font-size: 14px; font-weight: 800; color: #555; border: 1px solid #1a1a1a; transition: 0.3s; }
-        .h-item.waiting { background: var(--neon); color: black; border-color: var(--neon); }
-
-        /* Кнопка */
-        .btn-bet { background: var(--neon); color: black; width: 100%; padding: 20px; border: none; border-radius: 18px; font-weight: 900; font-size: 18px; text-transform: uppercase; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(223, 255, 0, 0.2); }
-        .btn-bet:active { transform: scale(0.97); }
-        .btn-bet:disabled { background: #1a1a1a; color: #444; box-shadow: none; }
+        /* Кнопки */
+        .btn-bet { background: var(--neon); color: black; width: 100%; padding: 20px; border: none; border-radius: 18px; font-weight: 900; font-size: 18px; text-transform: uppercase; cursor: pointer; transition: 0.2s; }
+        .btn-bet:active { transform: scale(0.98); }
+        .btn-bet:disabled { background: #151515; color: #444; }
 
         /* Список игроков */
-        .player-card { display: flex; justify-content: space-between; align-items: center; padding: 12px 10px; border-bottom: 1px solid #111; }
-        .p-info { display: flex; align-items: center; gap: 10px; font-size: 15px; }
-        .p-avatar { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #222; background: url('https://i.imgur.com') center/cover; }
+        .players-list { margin-top: 15px; }
+        .player-row { display: flex; justify-content: space-between; padding: 12px 5px; border-bottom: 1px solid #111; font-size: 14px; }
+        .p-status { font-weight: 800; transition: 0.3s; min-width: 50px; text-align: right; }
+        .win-text { color: var(--green) !important; }
+        .lose-text { color: var(--red) !important; }
+
+        /* Профиль */
+        .profile-card { background: #0a0a0a; padding: 25px; border-radius: 24px; border: 1px solid #1a1a1a; text-align: center; margin-top: 20px; }
+        .profile-input { background: #000; border: 1px solid #333; color: white; padding: 15px; border-radius: 12px; width: 90%; margin: 20px 0; font-size: 16px; text-align: center; }
+
+        /* Таб-бар */
+        .tabs { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; background: #050505; border-top: 1px solid #1a1a1a; padding-bottom: env(safe-area-inset-bottom); }
+        .tab-btn { flex: 1; text-align: center; padding: 15px 5px; font-size: 11px; color: #444; cursor: pointer; }
+        .tab-btn.active { color: var(--neon); }
+
+        /* Админка (Модалка) */
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; padding: 25px; border-radius: 24px; width: 85%; z-index: 2000; border: 2px solid var(--neon); }
+        .modal input { background: #000; border: 1px solid #333; color: white; padding: 10px; width: 100%; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <div class="p-info"><div class="p-avatar"></div> <span id="userName">ramazqq</span></div>
-        <div class="balance">💎 <span id="balanceDisplay">0.00</span> <span style="color:var(--neon)">+</span></div>
+        <div class="user-info" onclick="adminTrigger()"><div class="avatar"><img src="https://i.imgur.com" width="100%"></div> <span id="topNick">Player</span></div>
+        <div class="balance" onclick="adminTrigger()">💎 <span id="balanceDisplay">0.00</span></div>
     </div>
 
-    <div class="game-view" id="gameView">
-        <div class="grid-bg"></div>
-        <img id="logo" src="https://i.imgur.com" alt="logo">
-        <div id="multiplier">1.00x</div>
-        
-        <div id="waitUI" class="wait-ui">
-            <div style="font-size: 20px; font-weight: 800;">Waiting<br><small style="opacity:0.5; font-weight:400">for next round</small></div>
-            <div class="progress-bar"><div id="progress-fill"></div></div>
+    <!-- КРЭШ -->
+    <div id="crashPage" class="page active-page">
+        <div class="game-view" id="gameView">
+            <div class="grid"></div>
+            <img id="rocket" src="https://cdn-icons-png.flaticon.com" alt="rocket">
+            <div id="multiplier">1.00x</div>
+            <div id="waitUI" class="wait-ui">
+                <div style="font-weight: 800; font-size: 20px;">Waiting for round</div>
+                <div class="progress-bar"><div id="progress-fill"></div></div>
+            </div>
+        </div>
+        <button id="mainBtn" class="btn-bet" onclick="handleAction()">Place Bet</button>
+        <div id="playersList" class="players-list"></div>
+    </div>
+
+    <!-- ПРОФИЛЬ -->
+    <div id="profilePage" class="page">
+        <div class="profile-card">
+            <div class="avatar" style="width: 80px; height: 80px; margin: 0 auto;"> <img src="https://i.imgur.com" width="100%"></div>
+            <h2 id="profileNick" style="margin: 15px 0 5px;">Player</h2>
+            <p style="color: #444; font-size: 12px; margin-bottom: 20px;">ID: <span id="myID">Connecting...</span></p>
+            <input type="text" id="nickInput" class="profile-input" placeholder="Enter new nickname">
+            <button class="btn-bet" onclick="saveNick()">Update Nickname</button>
         </div>
     </div>
 
-    <div class="history" id="history">
-        <div class="h-item waiting">Waiting</div>
+    <!-- АДМИНКА -->
+    <div id="adminModal" class="modal">
+        <h3 style="color: var(--neon); margin-top: 0;">Admin Panel</h3>
+        <input type="password" id="adminPass" placeholder="Admin Password">
+        <hr style="border: 0.5px solid #222; margin: 15px 0;">
+        <input type="number" id="nextMult" placeholder="Next Crash (e.g. 5.5)">
+        <button class="btn-bet" style="padding: 10px; font-size: 14px; margin-bottom: 10px;" onclick="sendAdmin('setNextCrash')">Set Next Multiplier</button>
+        <button class="btn-bet" style="padding: 10px; font-size: 14px; background: #ff4b2b; color: white;" onclick="sendAdmin('instantCrash')">CRASH NOW</button>
+        <hr style="border: 0.5px solid #222; margin: 15px 0;">
+        <input type="text" id="targetNick" placeholder="Player Nickname">
+        <input type="number" id="addAmount" placeholder="Amount">
+        <button class="btn-bet" style="padding: 10px; font-size: 14px;" onclick="sendAdmin('addBalance')">Add Balance</button>
+        <button onclick="document.getElementById('adminModal').style.display='none'" style="background: none; border: none; color: #555; margin-top: 20px; width: 100%;">Close Panel</button>
     </div>
 
-    <button id="betBtn" class="btn-bet" onclick="handleAction()">Place bet</button>
-
-    <div id="playersList" style="margin-top: 10px;"></div>
+    <!-- ТАБЫ -->
+    <div class="tabs">
+        <div class="tab-btn active" onclick="showPage('crashPage', this)">🚀<br>Crash</div>
+        <div class="tab-btn" onclick="showPage('profilePage', this)">👤<br>Profile</div>
+    </div>
 
     <script>
         const socket = io();
-        let currentBet = 0;
-        let isBetting = false;
+        let myNick = "Guest" + Math.floor(Math.random() * 999);
+        let myBet = 0;
+        let isCashedOut = false;
+        let currentMult = 1.00;
+        let adminClicks = 0;
+
+        // Init
+        document.getElementById('topNick').innerText = myNick;
+        document.getElementById('profileNick').innerText = myNick;
+        socket.emit('join', { name: myNick });
 
         socket.on('gameState', data => {
             const view = document.getElementById('gameView');
             const waitUI = document.getElementById('waitUI');
             const multText = document.getElementById('multiplier');
-            const logo = document.getElementById('logo');
-            const btn = document.getElementById('betBtn');
+            const btn = document.getElementById('mainBtn');
 
             if (data.state === 'WAIT') {
                 view.classList.remove('flying');
                 waitUI.style.display = 'block';
                 multText.style.display = 'none';
-                logo.style.transform = 'scale(1)';
-                multText.style.color = 'var(--neon)';
-                btn.innerText = "Place bet";
+                btn.innerText = "Place Bet";
                 btn.disabled = false;
+                isCashedOut = false;
+                myBet = 0;
                 document.getElementById('playersList').innerHTML = '';
             } 
-            
             if (data.state === 'FLY') {
                 view.classList.add('flying');
                 waitUI.style.display = 'none';
                 multText.style.display = 'block';
-                logo.style.transform = 'scale(0.6) translateY(-50px)';
-                if (currentBet > 0) {
+                multText.style.color = 'var(--neon)';
+                if (myBet > 0 && !isCashedOut) {
                     btn.innerText = "CASH OUT";
                     btn.disabled = false;
-                } else {
-                    btn.innerText = "Wait for next";
-                    btn.disabled = true;
-                }
+                } else { btn.disabled = true; }
             }
-
             if (data.state === 'CRASH') {
                 view.classList.remove('flying');
-                multText.style.color = '#ff4b2b';
+                multText.style.color = 'var(--red)';
                 btn.innerText = "Crashed";
                 btn.disabled = true;
-                currentBet = 0;
-            }
-
-            if (data.history) {
-                document.getElementById('history').innerHTML = '<div class="h-item waiting">Waiting</div>' + 
-                    data.history.map(v => `<div class="h-item">${v.toFixed(2)}x</div>`).join('');
+                document.querySelectorAll('.p-status').forEach(el => {
+                    if (!el.classList.contains('win-text')) el.classList.add('lose-text');
+                });
             }
         });
 
         socket.on('tick', data => {
             if (data.timer) {
-                const p = (data.timer / 5) * 100;
-                document.getElementById('progress-fill').style.width = p + '%';
+                document.getElementById('progress-fill').style.width = (data.timer / 5) * 100 + '%';
             } else {
-                document.getElementById('multiplier').innerText = data.multiplier + 'x';
+                currentMult = data.multiplier;
+                document.getElementById('multiplier').innerText = currentMult + 'x';
+                document.querySelectorAll('.p-status').forEach(el => {
+                    if (!el.classList.contains('win-text') && !el.classList.contains('lose-text')) {
+                        el.innerText = currentMult + 'x';
+                    }
+                });
             }
         });
 
-        socket.on('updateBalance', d => {
-            document.getElementById('balanceDisplay').innerText = d.balance.toFixed(2);
-        });
+        socket.on('updateBalance', d => document.getElementById('balanceDisplay').innerText = d.balance.toFixed(2));
 
         function handleAction() {
-            const btn = document.getElementById('betBtn');
+            const btn = document.getElementById('mainBtn');
             if (btn.innerText === "CASH OUT") {
                 socket.emit('cashOut');
+                isCashedOut = true;
                 btn.disabled = true;
+                btn.innerText = "Cashed Out";
                 return;
             }
-            let amt = prompt("Bet amount:", "10");
+            let amt = prompt("Enter Bet Amount:", "10");
             if (amt && !isNaN(amt)) {
-                socket.emit('placeBet', { bet: parseFloat(amt) });
-                currentBet = parseFloat(amt);
-                btn.innerText = "BET PLACED";
+                myBet = parseFloat(amt);
+                socket.emit('placeBet', { bet: myBet });
+                btn.innerText = "Waiting...";
                 btn.disabled = true;
             }
         }
 
         socket.on('playerAction', data => {
             const list = document.getElementById('playersList');
-            const row = `<div class="player-card">
-                <div class="p-info"><div class="p-avatar"></div> ${data.name}</div>
-                <div style="color:var(--neon); font-weight:bold;">⭐ ${data.type === 'bet' ? data.bet : 'OUT ' + data.mult + 'x'}</div>
-            </div>`;
-            list.insertAdjacentHTML('afterbegin', row);
+            if (data.type === 'bet') {
+                const row = `<div class="player-row" id="p-${data.name}">
+                    <div style="display:flex; align-items:center; gap:8px;"><div class="avatar" style="width:25px; height:25px;"> <img src="https://i.imgur.com" width="100%"></div> ${data.name}</div>
+                    <div class="p-status">1.00x</div>
+                </div>`;
+                list.insertAdjacentHTML('afterbegin', row);
+            } else if (data.type === 'cashout') {
+                const statusEl = document.querySelector(`#p-${data.name} .p-status`);
+                if (statusEl) {
+                    statusEl.innerText = data.mult + 'x';
+                    statusEl.classList.add('win-text');
+                }
+            }
         });
+
+        // Tabs & Logic
+        function showPage(pageId, btn) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active-page');
+            btn.classList.add('active');
+        }
+
+        function saveNick() {
+            const val = document.getElementById('nickInput').value;
+            if (val) {
+                myNick = val;
+                document.getElementById('topNick').innerText = myNick;
+                document.getElementById('profileNick').innerText = myNick;
+                socket.emit('join', { name: myNick });
+                alert("Nickname updated!");
+            }
+        }
+
+        function adminTrigger() {
+            adminClicks++;
+            if (adminClicks >= 3) {
+                document.getElementById('adminModal').style.display = 'block';
+                adminClicks = 0;
+            }
+        }
+
+        function sendAdmin(action) {
+            socket.emit('adminCommand', {
+                password: document.getElementById('adminPass').value,
+                action: action,
+                value: document.getElementById('nextMult').value,
+                amount: document.getElementById('addAmount').value,
+                targetName: document.getElementById('targetNick').value
+            });
+        }
+
+        socket.on('connect', () => document.getElementById('myID').innerText = socket.id.substr(0,6).toUpperCase());
     </script>
 </body>
 </html>
