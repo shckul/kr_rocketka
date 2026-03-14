@@ -3,62 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crash Rocket</title>
+    <title>Rocket Crash Casino</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root { --bg: #000; --panel: #141414; --accent: #c4ff00; --danger: #ff4d4d; --text: #fff; --gray: #888; --blue: #00a3ff; }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        :root { --bg: #000; --panel: #111; --accent: #c4ff00; --danger: #ff4d4d; --text: #fff; --gray: #777; --blue: #00a3ff; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-        /* ВЕРХНЯЯ ПАНЕЛЬ */
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; }
-        .user-info { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 14px; }
-        .balance-pill { background: #1a1a1a; padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 6px; border: 1px solid #333; font-size: 14px; }
-        .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(45deg, #222, #444); border: 1px solid #555; }
+        /* ВЕРХ: НИК И БАЛАНС */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; z-index: 10; }
+        .user-info { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+        .avatar-circle { width: 32px; height: 32px; border-radius: 50%; background: #222; border: 1px solid #333; }
+        .balance-pill { background: #1a1a1a; padding: 7px 15px; border-radius: 20px; display: flex; align-items: center; gap: 8px; border: 1px solid #222; font-weight: 800; font-size: 15px; }
 
-        .main-content { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 15px; overflow-y: auto; }
-        .page { display: none; width: 100%; max-width: 500px; }
+        /* КОНТЕНТ СТРАНИЦ */
+        .main-view { flex: 1; position: relative; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 0 15px; }
+        .page { display: none; width: 100%; max-width: 480px; }
         .page.active { display: flex; flex-direction: column; }
 
-        /* ИГРОВОЕ ОКНО */
-        .game-window { position: relative; width: 100%; height: 260px; background: #0a0a0a; border-radius: 24px; border: 1px solid #222; overflow: hidden; margin-top: 5px; }
+        /* ИГРОВОЕ ОКНО + СЕТКА */
+        .game-window { position: relative; width: 100%; height: 260px; background: #080808; border-radius: 24px; border: 1px solid #1a1a1a; overflow: hidden; margin-top: 5px; }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        .multiplier-overlay { position: absolute; top: 50%; left: 25px; transform: translateY(-50%); z-index: 5; pointer-events: none; }
-        #multiplier { font-size: 52px; font-weight: 900; color: var(--accent); text-shadow: 0 0 15px rgba(196, 255, 0, 0.3); }
+        .multiplier-overlay { position: absolute; top: 50%; left: 30px; transform: translateY(-50%); z-index: 5; pointer-events: none; }
+        #multiplier { font-size: 52px; font-weight: 900; color: var(--accent); text-shadow: 0 0 20px rgba(196, 255, 0, 0.4); }
 
-        /* ИСТОРИЯ */
-        .history-list { display: flex; gap: 8px; margin: 15px 0; overflow-x: auto; width: 100%; scrollbar-width: none; }
-        .h-item { padding: 8px 16px; background: #1c1c1c; border-radius: 12px; font-size: 13px; font-weight: bold; color: var(--gray); min-width: 50px; text-align: center; }
-        .h-item.active { background: var(--accent); color: #000; }
+        /* ИСТОРИЯ (ПОД ИГРОЙ) */
+        .history-bar { display: flex; gap: 10px; margin: 15px 0; overflow-x: auto; scrollbar-width: none; width: 100%; }
+        .h-item { padding: 8px 16px; background: #181818; border-radius: 12px; font-size: 14px; font-weight: bold; color: var(--gray); min-width: 55px; text-align: center; border: 1px solid #222; }
+        .h-item.new-round { background: var(--accent); color: #000; border-color: var(--accent); }
 
-        /* КНОПКА */
-        .btn-bet { background: var(--accent); color: #000; border: none; padding: 18px; width: 100%; border-radius: 16px; font-weight: 800; font-size: 16px; cursor: pointer; transition: 0.2s; }
-        .btn-bet:active { transform: scale(0.98); }
-        .btn-bet:disabled { background: #222; color: #555; }
+        /* КНОПКА СТАВКИ */
+        .btn-bet { background: var(--accent); color: #000; border: none; padding: 18px; width: 100%; border-radius: 16px; font-weight: 900; font-size: 17px; cursor: pointer; transition: transform 0.1s; }
+        .btn-bet:active { transform: scale(0.97); }
+        .btn-bet:disabled { background: #222; color: #444; }
 
         /* СПИСОК ИГРОКОВ */
-        .players-list { margin-top: 20px; width: 100%; display: flex; flex-direction: column; gap: 12px; padding-bottom: 20px; }
-        .player-card { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 5px; border-radius: 10px; }
-        .p-info { display: flex; align-items: center; gap: 10px; }
-        .p-name { font-size: 14px; font-weight: bold; }
-        .p-bet { font-size: 12px; color: var(--blue); }
+        .players-list { margin-top: 20px; width: 100%; display: flex; flex-direction: column; gap: 12px; padding-bottom: 30px; }
+        .player-card { display: flex; justify-content: space-between; align-items: center; }
+        .p-meta { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+        .p-res { font-weight: 800; color: var(--accent); font-size: 16px; }
 
-        /* НИЖНЕЕ МЕНЮ */
+        /* НАВИГАЦИЯ ВНИЗУ */
         .nav-bar { display: flex; background: #000; padding: 12px 0; border-top: 1px solid #111; }
-        .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); font-size: 10px; font-weight: bold; cursor: pointer; }
-        .nav-btn.active { color: var(--accent); }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); font-size: 11px; font-weight: bold; cursor: pointer; }
+        .nav-item.active { color: var(--accent); }
+
+        /* ПРОФИЛЬ */
+        .profile-container { background: var(--panel); padding: 30px; border-radius: 24px; text-align: center; margin-top: 20px; border: 1px solid #222; }
+        input { width: 100%; padding: 15px; margin: 15px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 14px; text-align: center; font-size: 16px; outline: none; box-sizing: border-box; }
 
         /* МОДАЛКА */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; justify-content: center; align-items: center; }
-        .modal-ui { background: var(--panel); padding: 30px; border-radius: 24px; width: 280px; text-align: center; border: 1px solid #333; }
-        input { width: 100%; padding: 15px; margin: 15px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 12px; text-align: center; font-size: 18px; outline: none; }
+        .modal-box { background: var(--panel); padding: 30px; border-radius: 24px; width: 300px; text-align: center; border: 1px solid #333; }
     </style>
 </head>
 <body>
 
 <div class="header">
     <div class="user-info">
-        <div class="avatar"></div>
-        <span id="u-name-top">Player...</span>
+        <div class="avatar-circle"></div>
+        <span id="top-nick">Player...</span>
     </div>
     <div class="balance-pill">
         <span style="color:var(--blue)">💎</span>
@@ -66,18 +69,19 @@
     </div>
 </div>
 
-<div class="main-content">
-    <div id="crash-pg" class="page active">
+<div class="main-view">
+    <!-- ВКЛАДКА CRASH -->
+    <div id="page-crash" class="page active">
         <div class="game-window">
-            <canvas id="bgGrid"></canvas>
-            <canvas id="rocketLayer"></canvas>
+            <canvas id="gridCanvas"></canvas>
+            <canvas id="rocketCanvas"></canvas>
             <div class="multiplier-overlay">
                 <div id="multiplier">x1.00</div>
             </div>
         </div>
-
-        <div class="history-list" id="hist-box">
-            <div class="h-item active">Waiting</div>
+        
+        <div class="history-bar" id="history-box">
+            <div class="h-item new-round">Waiting</div>
         </div>
 
         <button id="betBtn" class="btn-bet">Waiting for bets</button>
@@ -85,115 +89,147 @@
         <div class="players-list" id="players-box"></div>
     </div>
 
-    <div id="profile-pg" class="page">
-        <div style="text-align:center; padding-top:40px; background:var(--panel); padding:25px; border-radius:20px;">
-            <h2 style="margin-top:0">Профиль</h2>
-            <p style="color:var(--gray)">Текущий ник: <b id="u-name-profile" style="color:#fff"></b></p>
-            <input type="text" id="new-nick" placeholder="Введите новый ник...">
-            <button onclick="changeNick()" class="btn-bet">Сохранить изменения</button>
+    <!-- ВКЛАДКА PROFILE -->
+    <div id="page-profile" class="page">
+        <div class="profile-container">
+            <h2 style="margin:0 0 10px 0">Профиль</h2>
+            <p style="color:var(--gray)">Ник: <b id="profile-nick" style="color:#fff"></b></p>
+            <input type="text" id="nick-field" placeholder="Придумайте ник...">
+            <button onclick="updateNick()" class="btn-bet">ИЗМЕНИТЬ</button>
         </div>
     </div>
 </div>
 
 <div class="nav-bar">
-    <div class="nav-btn"><span>🎮</span>Games</div>
-    <div class="nav-btn active" onclick="tab('crash')"><span>🚀</span>Crash</div>
-    <div class="nav-btn" onclick="tab('profile')"><span>👤</span>Profile</div>
+    <div class="nav-item"><span>🎮</span>Games</div>
+    <div class="nav-item"><span>💼</span>Staking</div>
+    <div class="nav-item active" id="nav-crash" onclick="switchTab('crash')"><span>🚀</span>Crash</div>
+    <div class="nav-item" id="nav-profile" onclick="switchTab('profile')"><span>👤</span>Profile</div>
 </div>
 
 <div id="betModal" class="modal">
-    <div class="modal-ui">
-        <h3 style="margin-top:0">Ставка (💎)</h3>
-        <input type="number" id="betAmt" value="0.10" step="0.01">
-        <button id="confirmBtn" class="btn-bet">PLACE BET</button>
-        <p onclick="closeM()" style="color:var(--gray); cursor:pointer; margin-top:20px; font-size:14px;">Закрыть</p>
+    <div class="modal-box">
+        <h3 style="margin-top:0">Сумма ставки</h3>
+        <input type="number" id="betValue" value="10" step="1">
+        <button id="confirmBet" class="btn-bet">ПОДТВЕРДИТЬ</button>
+        <p onclick="closeModal()" style="color:var(--gray); cursor:pointer; margin-top:20px; font-size:14px;">Закрыть</p>
     </div>
 </div>
 
 <script>
     const socket = io();
     
-    // ГЕНЕРАЦИЯ РАНДОМНОГО НИКА ПРИ ВХОДЕ
-    let myNickname = "Player" + Math.floor(100 + Math.random() * 900);
-    document.getElementById('u-name-top').innerText = myNickname;
-    document.getElementById('u-name-profile').innerText = myNickname;
-    
-    // Сразу сообщаем серверу наш ник
-    socket.emit('join', { name: myNickname });
+    // 1. РАНДОМНЫЙ НИК ПРИ ЗАГРУЗКЕ
+    let myNick = "Player" + Math.floor(100 + Math.random() * 899);
+    document.getElementById('top-nick').innerText = myNick;
+    document.getElementById('profile-nick').innerText = myNick;
+    socket.emit('join', { name: myNick });
 
-    let targetM = 1.00, visualM = 1.00, state = 'WAIT', betOn = false;
+    let targetMult = 1.00, visualMult = 1.00, state = 'WAIT', betActive = false;
 
-    function tab(name) {
+    // 2. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
+    function switchTab(id) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(name + '-pg').classList.add('active');
-        if(event) event.currentTarget.classList.add('active');
-        if(name === 'crash') resize();
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById('page-' + id).classList.add('active');
+        document.getElementById('nav-' + id).classList.add('active');
+        if(id === 'crash') resizeCanvas();
     }
 
-    function changeNick() {
-        const n = document.getElementById('new-nick').value;
-        if(n) {
-            myNickname = n;
-            socket.emit('join', { name: n });
-            document.getElementById('u-name-top').innerText = n;
-            document.getElementById('u-name-profile').innerText = n;
-            alert('Ник успешно изменен!');
-            tab('crash');
+    // 3. СМЕНА НИКА
+    function updateNick() {
+        const val = document.getElementById('nick-field').value;
+        if(val) {
+            myNick = val;
+            socket.emit('join', { name: val });
+            document.getElementById('top-nick').innerText = val;
+            document.getElementById('profile-nick').innerText = val;
+            alert('Ник изменен!');
+            switchTab('crash');
         }
     }
 
-    const rCan = document.getElementById('rocketLayer');
-    const bCan = document.getElementById('bgGrid');
+    // 4. ГРАФИКА И СЕТКА
+    const rCan = document.getElementById('rocketCanvas');
+    const gCan = document.getElementById('gridCanvas');
     const rCtx = rCan.getContext('2d');
-    const bCtx = bCan.getContext('2d');
+    const gCtx = gCan.getContext('2d');
 
-    function resize() {
-        rCan.width = bCan.width = rCan.parentElement.clientWidth;
-        rCan.height = bCan.height = 260;
-        bCtx.clearRect(0,0,bCan.width,260);
-        bCtx.strokeStyle = '#151515';
-        for(let x=0; x<bCan.width; x+=30) { bCtx.beginPath(); bCtx.moveTo(x,0); bCtx.lineTo(x,260); bCtx.stroke(); }
-        for(let y=0; y<260; y+=30) { bCtx.beginPath(); bCtx.moveTo(0,y); bCtx.lineTo(bCan.width,y); bCtx.stroke(); }
+    function resizeCanvas() {
+        rCan.width = gCan.width = rCan.parentElement.clientWidth;
+        rCan.height = gCan.height = 260;
+        
+        // Рисуем сетку один раз для оптимизации
+        gCtx.clearRect(0,0,gCan.width,260);
+        gCtx.strokeStyle = '#151515';
+        gCtx.lineWidth = 1;
+        for(let x=0; x<gCan.width; x+=30) { gCtx.beginPath(); gCtx.moveTo(x,0); gCtx.lineTo(x,260); gCtx.stroke(); }
+        for(let y=0; y<260; y+=30) { gCtx.beginPath(); gCtx.moveTo(0,y); gCtx.lineTo(gCan.width,y); gCtx.stroke(); }
     }
 
-    function loop() {
+    function drawRocket(x, y, angle) {
+        rCtx.save();
+        rCtx.translate(x, y);
+        rCtx.rotate(angle);
+        
+        // Анимированный огонь
+        rCtx.fillStyle = '#ff9100';
+        let fSize = 8 + Math.random() * 8;
+        rCtx.beginPath(); rCtx.moveTo(-15, 0); rCtx.lineTo(-15-fSize, -4); rCtx.lineTo(-15-fSize, 4); rCtx.fill();
+
+        // Тело ракеты
+        rCtx.fillStyle = '#fff';
+        rCtx.beginPath(); rCtx.ellipse(0, 0, 18, 7, 0, 0, Math.PI*2); rCtx.fill();
+
+        // Носик цвета accent
+        rCtx.fillStyle = '#c4ff00';
+        rCtx.beginPath(); rCtx.moveTo(12, -6); rCtx.quadraticCurveTo(24, 0, 12, 6); rCtx.fill();
+
+        // Иллюминатор
+        rCtx.fillStyle = '#000';
+        rCtx.beginPath(); rCtx.arc(3, 0, 2.5, 0, Math.PI*2); rCtx.fill();
+        
+        rCtx.restore();
+    }
+
+    function render() {
         rCtx.clearRect(0,0,rCan.width,260);
         if(state === 'FLY') {
-            visualM += (targetM - visualM) * 0.1; // Плавность
-            let p = Math.min((visualM - 1) / 12, 1);
-            let x = 40 + (p * (rCan.width - 120));
-            let y = 220 - (Math.pow(p, 0.6) * 180);
-            let s = Math.sin(Date.now()/150)*5;
+            visualMult += (targetMult - visualMult) * 0.1; // Плавное следование
+            let p = Math.min((visualMult - 1) / 15, 1);
+            let x = 60 + (p * (rCan.width - 150));
+            let y = 220 - (Math.pow(p, 0.7) * 180);
+            let hover = Math.sin(Date.now()/250) * 2; // Очень мягкое покачивание
 
+            // Траектория (линия)
             rCtx.beginPath(); rCtx.strokeStyle = '#c4ff00'; rCtx.lineWidth = 3;
-            rCtx.moveTo(40, 220); rCtx.quadraticCurveTo(x/2+20, 220, x, y+s); rCtx.stroke();
+            rCtx.lineCap = 'round';
+            rCtx.moveTo(60, 220); rCtx.quadraticCurveTo(x/2+30, 220, x, y+hover); rCtx.stroke();
 
-            // Рисуем "ракету" (желтый круг как на скрине)
-            rCtx.fillStyle = '#c4ff00';
-            rCtx.beginPath(); rCtx.arc(x, y+s, 10, 0, Math.PI*2); rCtx.fill();
+            drawRocket(x, y+hover, -0.4);
         }
-        requestAnimationFrame(loop);
+        requestAnimationFrame(render);
     }
 
+    // 5. ОБРАБОТКА СОБЫТИЙ
     socket.on('tick', d => {
         const m = document.getElementById('multiplier');
-        if(d.timer) m.innerText = d.timer + 's';
-        else { targetM = parseFloat(d.multiplier); m.innerText = 'x' + d.multiplier; }
+        if(d.timer) { m.innerText = d.timer + 's'; m.style.color = '#fff'; }
+        else { targetMult = parseFloat(d.multiplier); m.innerText = 'x' + d.multiplier; m.style.color = '#c4ff00'; }
     });
 
     socket.on('gameState', d => {
         state = d.state;
         const b = document.getElementById('betBtn');
         if(state === 'WAIT') {
-            b.innerText = 'Waiting for bets'; b.disabled = false; betOn = false;
+            b.innerText = 'Waiting for bets'; b.disabled = false; betActive = false;
             document.getElementById('players-box').innerHTML = '';
         } else if(state === 'FLY') {
-            if(betOn) { b.innerText = 'CASH OUT'; b.disabled = false; }
+            if(betActive) { b.innerText = 'CASH OUT'; b.disabled = false; }
             else { b.innerText = 'Waiting...'; b.disabled = true; }
         } else if(state === 'CRASH') {
             b.innerText = 'CRASHED'; b.disabled = true;
-            updateH(d.history);
+            updateHistory(d.history);
         }
     });
 
@@ -204,39 +240,36 @@
         if(d.type === 'bet') {
             const card = document.createElement('div');
             card.className = 'player-card'; card.id = 'p-' + d.name;
-            card.innerHTML = `<div class="p-info"><div class="avatar" style="width:30px; height:30px"></div><div><div class="p-name">${d.name}</div><div class="p-bet">💎 ${d.bet}</div></div></div><div class="cashout-res" style="font-weight:bold"></div>`;
+            card.innerHTML = `<div class="p-meta"><div class="avatar-circle" style="width:28px; height:28px"></div><b>${d.name}</b> <span style="color:var(--blue)">💎 ${d.bet}</span></div><div class="p-res"></div>`;
             list.prepend(card);
         }
         if(d.type === 'cashout') {
             const row = document.getElementById('p-' + d.name);
-            if(row) {
-                row.querySelector('.cashout-res').innerText = 'x' + d.mult;
-                row.querySelector('.cashout-res').style.color = '#c4ff00';
-            }
+            if(row) row.querySelector('.p-res').innerText = 'x' + d.mult;
         }
     });
 
     document.getElementById('betBtn').onclick = () => {
-        if(state === 'WAIT' && !betOn) document.getElementById('betModal').style.display='flex';
-        else if(state === 'FLY' && betOn) { socket.emit('cashOut'); betOn = false; }
+        if(state === 'WAIT' && !betActive) document.getElementById('betModal').style.display='flex';
+        else if(state === 'FLY' && betActive) { socket.emit('cashOut'); betActive = false; }
     };
 
-    document.getElementById('confirmBtn').onclick = () => {
-        socket.emit('placeBet', {bet: document.getElementById('betAmt').value});
-        betOn = true; document.getElementById('betBtn').innerText = 'BET PLACED';
-        document.getElementById('betBtn').disabled = true; closeM();
+    document.getElementById('confirmBet').onclick = () => {
+        socket.emit('placeBet', { bet: document.getElementById('betValue').value });
+        betActive = true; document.getElementById('betBtn').innerText = 'BET PLACED';
+        document.getElementById('betBtn').disabled = true; closeModal();
     };
 
-    function updateH(list) {
-        const h = document.getElementById('hist-box'); h.innerHTML = '<div class="h-item active">Waiting</div>';
+    function updateHistory(list) {
+        const h = document.getElementById('history-box'); h.innerHTML = '<div class="h-item new-round">Waiting</div>';
         list.slice(0, 6).forEach(v => {
             const item = document.createElement('div'); item.className = 'h-item';
             item.innerText = v + 'x'; h.appendChild(item);
         });
     }
 
-    function closeM() { document.getElementById('betModal').style.display='none'; }
-    window.onload = () => { resize(); loop(); };
+    function closeModal() { document.getElementById('betModal').style.display='none'; }
+    window.onload = () => { resizeCanvas(); render(); };
 </script>
 </body>
 </html>
