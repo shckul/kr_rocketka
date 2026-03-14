@@ -10,7 +10,7 @@
         body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; margin: 0; padding: 0; overflow: hidden; }
 
         /* Навигация */
-        .page { display: none; padding: 15px; height: calc(100vh - 85px); overflow-y: auto; }
+        .page { display: none; padding: 10px 15px; height: calc(100vh - 85px); overflow-y: auto; }
         .active-page { display: block; }
 
         /* Хедер */
@@ -19,53 +19,62 @@
         .avatar { width: 35px; height: 35px; border-radius: 50%; background: #222; border: 1px solid #333; overflow: hidden; }
         .balance { background: #111; padding: 8px 15px; border-radius: 20px; font-weight: 800; border: 1px solid #222; font-size: 14px; color: var(--neon); cursor: pointer; }
 
-        /* Игровой экран */
+        /* Игровое поле */
         .game-view { 
-            height: 260px; background: var(--card); border-radius: 24px; position: relative; 
-            margin: 5px 0 15px; overflow: hidden; border: 1px solid #1a1a1a;
+            height: 240px; background: var(--card); border-radius: 24px; position: relative; 
+            margin: 5px 0 10px; overflow: hidden; border: 1px solid #1a1a1a;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         .grid {
             position: absolute; width: 200%; height: 200%;
             background-image: linear-gradient(rgba(223, 255, 0, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(223, 255, 0, 0.05) 1px, transparent 1px);
-            background-size: 40px 40px; transform: perspective(500px) rotateX(25deg); top: -50%; transition: 0.3s;
+            background-size: 40px 40px; transform: perspective(500px) rotateX(25deg); top: -50%;
         }
         .flying .grid { animation: moveGrid 1.2s linear infinite; }
         @keyframes moveGrid { 0% { transform: perspective(500px) rotateX(25deg) translateY(0); } 100% { transform: perspective(500px) rotateX(25deg) translateY(40px); } }
 
-        #rocket { width: 70px; z-index: 5; display: none; filter: drop-shadow(0 0 15px var(--neon)); transition: 0.3s; }
+        #rocket { width: 65px; z-index: 5; display: none; filter: drop-shadow(0 0 15px var(--neon)); }
         .flying #rocket { display: block; animation: shake 0.15s infinite; }
         @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -1px); } 100% { transform: translate(1px, -1px); } }
-
-        #multiplier { font-size: 62px; font-weight: 900; color: var(--neon); z-index: 10; display: none; text-shadow: 0 0 20px rgba(223, 255, 0, 0.3); }
+        #multiplier { font-size: 58px; font-weight: 900; color: var(--neon); z-index: 10; display: none; }
         
-        /* Ожидание */
         .wait-ui { text-align: center; z-index: 10; }
-        .progress-bar { width: 180px; height: 5px; background: #222; border-radius: 10px; margin: 12px auto; overflow: hidden; }
-        #progress-fill { width: 100%; height: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); }
+        .progress-bar { width: 150px; height: 4px; background: #222; border-radius: 10px; margin: 10px auto; overflow: hidden; }
+        #progress-fill { width: 100%; height: 100%; background: var(--neon); }
 
-        /* Кнопки */
-        .btn-bet { background: var(--neon); color: black; width: 100%; padding: 20px; border: none; border-radius: 18px; font-weight: 900; font-size: 18px; text-transform: uppercase; cursor: pointer; transition: 0.2s; }
-        .btn-bet:active { transform: scale(0.98); }
+        /* ИСТОРИЯ КЭФОВ (Добавлено сюда) */
+        .history-list { 
+            display: flex; gap: 8px; margin-bottom: 15px; overflow-x: auto; 
+            padding: 5px 0; scrollbar-width: none; min-height: 35px;
+        }
+        .history-list::-webkit-scrollbar { display: none; }
+        .hist-badge { 
+            padding: 6px 12px; background: #161616; border-radius: 10px; 
+            font-size: 13px; font-weight: 800; color: #666; border: 1px solid #222;
+            white-space: nowrap; flex-shrink: 0;
+        }
+        .hist-high { color: var(--neon); border-color: var(--neon); background: rgba(223, 255, 0, 0.05); }
+
+        /* Кнопка */
+        .btn-bet { background: var(--neon); color: black; width: 100%; padding: 18px; border: none; border-radius: 18px; font-weight: 900; font-size: 17px; text-transform: uppercase; cursor: pointer; }
         .btn-bet:disabled { background: #151515; color: #444; }
 
         /* Список игроков */
-        .players-list { margin-top: 15px; }
         .player-row { display: flex; justify-content: space-between; padding: 12px 5px; border-bottom: 1px solid #111; font-size: 14px; }
-        .p-status { font-weight: 800; transition: 0.3s; min-width: 50px; text-align: right; }
+        .p-status { font-weight: 800; min-width: 60px; text-align: right; }
         .win-text { color: var(--green) !important; }
         .lose-text { color: var(--red) !important; }
 
         /* Профиль */
-        .profile-card { background: #0a0a0a; padding: 25px; border-radius: 24px; border: 1px solid #1a1a1a; text-align: center; margin-top: 20px; }
-        .profile-input { background: #000; border: 1px solid #333; color: white; padding: 15px; border-radius: 12px; width: 90%; margin: 20px 0; font-size: 16px; text-align: center; }
+        .profile-card { background: #0a0a0a; padding: 25px; border-radius: 24px; border: 1px solid #1a1a1a; text-align: center; margin-top: 10px; }
+        .profile-input { background: #000; border: 1px solid #333; color: white; padding: 15px; border-radius: 12px; width: 90%; margin: 15px 0; text-align: center; }
 
-        /* Таб-бар */
-        .tabs { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; background: #050505; border-top: 1px solid #1a1a1a; padding-bottom: env(safe-area-inset-bottom); }
-        .tab-btn { flex: 1; text-align: center; padding: 15px 5px; font-size: 11px; color: #444; cursor: pointer; }
+        /* Табы */
+        .tabs { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; background: #050505; border-top: 1px solid #1a1a1a; padding-bottom: 15px; }
+        .tab-btn { flex: 1; text-align: center; padding: 12px 5px; font-size: 11px; color: #444; }
         .tab-btn.active { color: var(--neon); }
 
-        /* Админка (Модалка) */
+        /* Админка */
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; padding: 25px; border-radius: 24px; width: 85%; z-index: 2000; border: 2px solid var(--neon); }
         .modal input { background: #000; border: 1px solid #333; color: white; padding: 10px; width: 100%; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
     </style>
@@ -77,48 +86,53 @@
         <div class="balance" onclick="adminTrigger()">💎 <span id="balanceDisplay">0.00</span></div>
     </div>
 
-    <!-- КРЭШ -->
     <div id="crashPage" class="page active-page">
+        <!-- Окно игры -->
         <div class="game-view" id="gameView">
             <div class="grid"></div>
             <img id="rocket" src="https://cdn-icons-png.flaticon.com" alt="rocket">
             <div id="multiplier">1.00x</div>
             <div id="waitUI" class="wait-ui">
-                <div style="font-weight: 800; font-size: 20px;">Waiting for round</div>
+                <div style="font-weight: 800; font-size: 18px;">Waiting for round</div>
                 <div class="progress-bar"><div id="progress-fill"></div></div>
             </div>
         </div>
+
+        <!-- ИСТОРИЯ КЭФОВ ТУТ -->
+        <div id="historyList" class="history-list"></div>
+
+        <!-- Кнопка Place Bet -->
         <button id="mainBtn" class="btn-bet" onclick="handleAction()">Place Bet</button>
-        <div id="playersList" class="players-list"></div>
+
+        <!-- Список игроков -->
+        <div id="playersList" style="margin-top: 10px;"></div>
     </div>
 
-    <!-- ПРОФИЛЬ -->
+    <!-- Вкладка Профиль -->
     <div id="profilePage" class="page">
         <div class="profile-card">
-            <div class="avatar" style="width: 80px; height: 80px; margin: 0 auto;"> <img src="https://i.imgur.com" width="100%"></div>
+            <div class="avatar" style="width: 80px; height: 80px; margin: 0 auto;"><img src="https://i.imgur.com" width="100%"></div>
             <h2 id="profileNick" style="margin: 15px 0 5px;">Player</h2>
-            <p style="color: #444; font-size: 12px; margin-bottom: 20px;">ID: <span id="myID">Connecting...</span></p>
+            <p style="color: #444; font-size: 12px; margin-bottom: 15px;">ID: <span id="myID">---</span></p>
             <input type="text" id="nickInput" class="profile-input" placeholder="Enter new nickname">
             <button class="btn-bet" onclick="saveNick()">Update Nickname</button>
         </div>
     </div>
 
-    <!-- АДМИНКА -->
+    <!-- Админка -->
     <div id="adminModal" class="modal">
-        <h3 style="color: var(--neon); margin-top: 0;">Admin Panel</h3>
+        <h3 style="color: var(--neon); margin: 0 0 15px;">Admin Panel</h3>
         <input type="password" id="adminPass" placeholder="Admin Password">
-        <hr style="border: 0.5px solid #222; margin: 15px 0;">
-        <input type="number" id="nextMult" placeholder="Next Crash (e.g. 5.5)">
+        <input type="number" id="nextMult" placeholder="Next Crash (e.g. 25.0)">
         <button class="btn-bet" style="padding: 10px; font-size: 14px; margin-bottom: 10px;" onclick="sendAdmin('setNextCrash')">Set Next Multiplier</button>
         <button class="btn-bet" style="padding: 10px; font-size: 14px; background: #ff4b2b; color: white;" onclick="sendAdmin('instantCrash')">CRASH NOW</button>
         <hr style="border: 0.5px solid #222; margin: 15px 0;">
         <input type="text" id="targetNick" placeholder="Player Nickname">
-        <input type="number" id="addAmount" placeholder="Amount">
+        <input type="number" id="addAmount" placeholder="Balance Amount">
         <button class="btn-bet" style="padding: 10px; font-size: 14px;" onclick="sendAdmin('addBalance')">Add Balance</button>
-        <button onclick="document.getElementById('adminModal').style.display='none'" style="background: none; border: none; color: #555; margin-top: 20px; width: 100%;">Close Panel</button>
+        <button onclick="document.getElementById('adminModal').style.display='none'" style="background:none; border:none; color:#555; margin-top:15px; width:100%;">Close Panel</button>
     </div>
 
-    <!-- ТАБЫ -->
     <div class="tabs">
         <div class="tab-btn active" onclick="showPage('crashPage', this)">🚀<br>Crash</div>
         <div class="tab-btn" onclick="showPage('profilePage', this)">👤<br>Profile</div>
@@ -126,13 +140,12 @@
 
     <script>
         const socket = io();
-        let myNick = "Guest" + Math.floor(Math.random() * 999);
+        let myNick = "Player_" + Math.floor(Math.random() * 999);
         let myBet = 0;
         let isCashedOut = false;
         let currentMult = 1.00;
         let adminClicks = 0;
 
-        // Init
         document.getElementById('topNick').innerText = myNick;
         document.getElementById('profileNick').innerText = myNick;
         socket.emit('join', { name: myNick });
@@ -172,6 +185,7 @@
                     if (!el.classList.contains('win-text')) el.classList.add('lose-text');
                 });
             }
+            if (data.history) updateHistory(data.history);
         });
 
         socket.on('tick', data => {
@@ -190,6 +204,13 @@
 
         socket.on('updateBalance', d => document.getElementById('balanceDisplay').innerText = d.balance.toFixed(2));
 
+        function updateHistory(history) {
+            const hList = document.getElementById('historyList');
+            hList.innerHTML = history.map(val => `
+                <div class="hist-badge ${val >= 2 ? 'hist-high' : ''}">${val.toFixed(2)}x</div>
+            `).join('');
+        }
+
         function handleAction() {
             const btn = document.getElementById('mainBtn');
             if (btn.innerText === "CASH OUT") {
@@ -199,7 +220,7 @@
                 btn.innerText = "Cashed Out";
                 return;
             }
-            let amt = prompt("Enter Bet Amount:", "10");
+            let amt = prompt("Bet Amount:", "10");
             if (amt && !isNaN(amt)) {
                 myBet = parseFloat(amt);
                 socket.emit('placeBet', { bet: myBet });
@@ -212,7 +233,7 @@
             const list = document.getElementById('playersList');
             if (data.type === 'bet') {
                 const row = `<div class="player-row" id="p-${data.name}">
-                    <div style="display:flex; align-items:center; gap:8px;"><div class="avatar" style="width:25px; height:25px;"> <img src="https://i.imgur.com" width="100%"></div> ${data.name}</div>
+                    <div style="display:flex; align-items:center; gap:8px;"><div class="avatar" style="width:25px; height:25px;"><img src="https://i.imgur.com" width="100%"></div> ${data.name}</div>
                     <div class="p-status">1.00x</div>
                 </div>`;
                 list.insertAdjacentHTML('afterbegin', row);
@@ -225,7 +246,6 @@
             }
         });
 
-        // Tabs & Logic
         function showPage(pageId, btn) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
