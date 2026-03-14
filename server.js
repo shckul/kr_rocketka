@@ -59,7 +59,7 @@ function launchRocket() {
         
         // НОВАЯ ПЛАВНАЯ ФОРМУЛА РОСТА
         // Примерно 2x через 10 сек, 10x через 30 сек. Игроки успеют нажать кнопку!
-        multiplier = Math.pow(Math.E, 0.065 * elapsed);
+        multiplier = Math.pow(Math.E, 0.12 * elapsed);
         
         if (multiplier >= crashPoint) {
             multiplier = crashPoint; 
