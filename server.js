@@ -18,14 +18,15 @@ let startTime = 0;
 let history = [];
 let players = {}; 
 
-// --- ЛОГИКА ИГРОВОГО ЦИКЛА ---
+// --- АДМИН-ПЕРЕМЕННЫЕ ---
+let forcedCrash = null; 
+const ADMIN_PASSWORD = "admin777"; 
 
 function startCycle() {
     gameState = 'WAIT';
     multiplier = 1.00;
-    let waitTimer = 5.0; // Время на прием ставок
+    let waitTimer = 5.0;
 
-    // Сброс состояния игроков для нового раунда
     for (let id in players) {
         players[id].betPlaced = false;
         players[id].cashedOut = false;
@@ -37,7 +38,6 @@ function startCycle() {
     const waitInterval = setInterval(() => {
         waitTimer -= 0.1;
         io.emit('tick', { timer: waitTimer.toFixed(1), multiplier: "1.00" });
-
         if (waitTimer <= 0) {
             clearInterval(waitInterval);
             launchRocket();
@@ -49,16 +49,18 @@ function launchRocket() {
     gameState = 'FLY';
     startTime = Date.now();
     
-    // Математика Crash (House Edge 3%)
-    crashPoint = (100 / (Math.random() * 99 + 1)) * 0.97; 
+    // ЛОГИКА ПОДКУРТКИ
+    if (forcedCrash !== null) {
+        crashPoint = forcedCrash;
+        forcedCrash = null; 
+    } else {
+        crashPoint = (100 / (Math.random() * 99 + 1)) * 0.97;
+    }
     
     io.emit('gameState', { state: 'FLY', startTime });
 
     const gameLoop = setInterval(() => {
         const elapsed = (Date.now() - startTime) / 1000;
-        
-        // НОВАЯ ПЛАВНАЯ ФОРМУЛА РОСТА
-        // Примерно 2x через 10 сек, 10x через 30 сек. Игроки успеют нажать кнопку!
         multiplier = Math.pow(Math.E, 0.12 * elapsed);
         
         if (multiplier >= crashPoint) {
@@ -75,79 +77,51 @@ function doCrash() {
     gameState = 'CRASH';
     history.unshift(parseFloat(multiplier.toFixed(2)));
     if(history.length > 15) history.pop();
-    
-    io.emit('gameState', { 
-        state: 'CRASH', 
-        multiplier: multiplier.toFixed(2), 
-        history 
-    });
-    
-    setTimeout(startCycle, 3000); // Пауза после взрыва
+    io.emit('gameState', { state: 'CRASH', multiplier: multiplier.toFixed(2), history });
+    setTimeout(startCycle, 3000);
 }
 
-// --- СТАВКИ И БАЛАНС ---
-
 io.on('connection', (socket) => {
-    // Выдаем 1000 монет при входе
-    players[socket.id] = { 
-        name: "Guest", 
-        balance: 1000.00, 
-        currentBet: 0, 
-        betPlaced: false, 
-        cashedOut: false 
-    };
-
-    // СРАЗУ отправляем баланс, чтобы на экране не было 0.00
+    players[socket.id] = { name: "Guest", balance: 1000.00, currentBet: 0, betPlaced: false, cashedOut: false };
     socket.emit('updateBalance', { balance: players[socket.id].balance });
 
-    socket.on('join', (data) => {
-        if(players[socket.id]) players[socket.id].name = data.name || "Guest";
-    });
+    socket.on('join', (data) => { if(players[socket.id]) players[socket.id].name = data.name; });
 
-    socket.on('placeBet', (data) => {
-        const player = players[socket.id];
-        const betAmount = parseFloat(data.bet);
-
-        if(gameState === 'WAIT' && player && !player.betPlaced) {
-            if (betAmount > 0 && player.balance >= betAmount) {
-                player.balance -= betAmount;
-                player.currentBet = betAmount;
-                player.betPlaced = true;
-
-                socket.emit('updateBalance', { balance: player.balance });
-                
-                io.emit('playerAction', { 
-                    name: player.name, 
-                    bet: betAmount, 
-                    type: 'bet' 
-                });
-            } else {
-                socket.emit('errorMsg', { text: "Недостаточно средств!" });
+    // --- ОБРАБОТКА АДМИН-КОМАНД ---
+    socket.on('adminCommand', (data) => {
+        if (data.password !== ADMIN_PASSWORD) return;
+        if (data.action === 'instantCrash') { crashPoint = multiplier; }
+        if (data.action === 'setNextCrash') { forcedCrash = parseFloat(data.value); }
+        if (data.action === 'addBalance') {
+            for (let id in players) {
+                if (players[id].name === data.targetName) {
+                    players[id].balance += parseFloat(data.amount);
+                    io.to(id).emit('updateBalance', { balance: players[id].balance });
+                }
             }
         }
     });
 
-    socket.on('cashOut', () => {
-        const player = players[socket.id];
-        if(gameState === 'FLY' && player && player.betPlaced && !player.cashedOut) {
-            const winAmount = player.currentBet * multiplier;
-            player.balance += winAmount;
-            player.cashedOut = true;
+    socket.on('placeBet', (data) => {
+        const p = players[socket.id];
+        const amt = parseFloat(data.bet);
+        if(gameState === 'WAIT' && p && !p.betPlaced && p.balance >= amt) {
+            p.balance -= amt; p.currentBet = amt; p.betPlaced = true;
+            socket.emit('updateBalance', { balance: p.balance });
+            io.emit('playerAction', { name: p.name, bet: amt, type: 'bet' });
+        }
+    });
 
-            socket.emit('updateBalance', { balance: player.balance });
-            
-            io.emit('playerAction', { 
-                name: player.name, 
-                mult: multiplier.toFixed(2), 
-                type: 'cashout' 
-            });
+    socket.on('cashOut', () => {
+        const p = players[socket.id];
+        if(gameState === 'FLY' && p && p.betPlaced && !p.cashedOut) {
+            p.balance += p.currentBet * multiplier; p.cashedOut = true;
+            socket.emit('updateBalance', { balance: p.balance });
+            io.emit('playerAction', { name: p.name, mult: multiplier.toFixed(2), type: 'cashout' });
         }
     });
 
     socket.on('disconnect', () => { delete players[socket.id]; });
 });
 
-startCycle();
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(process.env.PORT || 3000, () => console.log('Server Live'));
