@@ -3,257 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rocket TON Casino</title>
-    <!-- ПОДКЛЮЧЕНИЕ TELEGRAM -->
-    <script src="https://telegram.org"></script>
+    <title>Crash Game TMA</title>
+    <!-- Подключаем Socket.io и Telegram SDK -->
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://telegram.org"></script>
     <style>
-        :root { --bg: #000; --panel: #141414; --accent: #c4ff00; --text: #fff; --gray: #777; --blue: #00a3ff; --danger: #ff4d4d; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; }
-        .user-info { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; }
-        .balance-pill { background: #1a1a1a; padding: 6px 14px; border-radius: 20px; display: flex; align-items: center; gap: 6px; border: 1px solid #222; cursor: pointer; }
-        .avatar { width: 32px; height: 32px; border-radius: 50%; background: #222; border: 1px solid #333; }
-
-        .main-view { flex: 1; position: relative; overflow-y: auto; padding: 0 15px 80px 15px; }
-        .page { display: none; width: 100%; max-width: 500px; margin: 0 auto; }
-        .page.active { display: block; }
-
-        .game-window { position: relative; width: 100%; height: 260px; background: #080808; border-radius: 24px; border: 1px solid #1a1a1a; overflow: hidden; margin-top: 10px; }
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        .mult-overlay { position: absolute; top: 50%; left: 30px; transform: translateY(-50%); z-index: 5; pointer-events: none; }
-        #multiplier { font-size: 52px; font-weight: 900; color: var(--accent); }
-
-        .history-bar { display: flex; gap: 8px; margin: 15px 0; overflow-x: auto; scrollbar-width: none; }
-        .h-item { padding: 8px 16px; background: #181818; border-radius: 12px; font-size: 14px; font-weight: bold; color: var(--gray); min-width: 60px; text-align: center; }
-        .h-item.active { background: var(--accent); color: #000; }
-
-        .btn-bet { background: var(--accent); color: #000; border: none; padding: 18px; width: 100%; border-radius: 16px; font-weight: 900; font-size: 16px; cursor: pointer; }
-        .btn-bet:disabled { background: #222; color: #444; }
-
-        .nav-tabs { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; display: flex; padding: 12px 0; border-top: 1px solid #151515; z-index: 100; }
-        .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); font-size: 10px; font-weight: bold; cursor: pointer; }
-        .tab-item.active { color: var(--accent); }
-
-        /* ПРОФИЛЬ */
-        .profile-card { background: var(--panel); padding: 30px; border-radius: 24px; text-align: center; margin-top: 20px; }
-        input { width: 100%; padding: 15px; margin: 10px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 14px; text-align: center; font-size: 16px; outline: none; }
-
-        /* АДМИН ПАНЕЛЬ */
-        .admin-panel { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; padding: 30px; overflow-y: auto; text-align: center; }
-        .admin-box { background: #111; padding: 20px; border-radius: 20px; border: 1px solid #333; margin-bottom: 15px; }
-
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-box { background: var(--panel); padding: 30px; border-radius: 24px; width: 300px; text-align: center; }
+        body { margin: 0; background: #0b0e11; color: white; font-family: 'Roboto', sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        #history { display: flex; gap: 8px; overflow-x: auto; padding: 10px; background: #181a20; border-bottom: 1px solid #2b2f36; }
+        .h-item { background: #2b2f36; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; color: #00ff88; }
+        #game-container { flex: 1; position: relative; overflow: hidden; background: radial-gradient(circle at bottom left, #1a1d23, #0b0e11); }
+        canvas { width: 100%; height: 100%; display: block; }
+        #ui-overlay { position: absolute; top: 30%; left: 0; width: 100%; text-align: center; pointer-events: none; }
+        #multiplier { font-size: 4rem; font-weight: 900; color: #fff; text-shadow: 0 0 30px rgba(255,255,255,0.2); }
+        #controls { background: #181a20; padding: 20px; border-radius: 24px 24px 0 0; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); }
+        .info { display: flex; justify-content: space-between; font-size: 0.9rem; color: #848e9c; margin-bottom: 4px; }
+        .input-group { position: relative; }
+        input { background: #2b2f36; border: 1px solid #3e444e; color: white; padding: 16px; border-radius: 12px; font-size: 1.1rem; width: 100%; box-sizing: border-box; outline: none; }
+        #betBtn { background: #00ff88; color: #000; border: none; padding: 18px; border-radius: 12px; font-weight: bold; font-size: 1.2rem; cursor: pointer; transition: 0.2s; text-transform: uppercase; }
+        #betBtn:disabled { background: #3e444e; color: #848e9c; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
+<div id="history"></div>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="ui-overlay">
+        <div id="multiplier">1.00x</div>
+    </div>
+</div>
+
+<div id="controls">
+    <div class="info">
+        <span>Баланс: <b id="user-balance" style="color: #fff">1000.00</b></span>
+        <span id="status-text">Ожидание...</span>
+    </div>
+    <div class="input-group">
+        <input type="number" id="bet-input" value="10">
+    </div>
+    <button id="betBtn">СДЕЛАТЬ СТАВКУ</button>
+</div>
+
 <script>
-    // Телеграм инициализация
+    // --- ИНИЦИАЛИЗАЦИЯ ---
+    const socket = io(); // Авто-подключение к Render
     const tg = window.Telegram.WebApp;
-    tg.expand();
     tg.ready();
-</script>
+    tg.expand();
 
-<div class="header">
-    <div class="user-info">
-        <div class="avatar"></div>
-        <span id="top-nick">Loading...</span>
-    </div>
-    <div class="balance-pill" id="balance-clicker">
-        <span style="color:var(--blue)">💎</span>
-        <span id="user-balance">0.00</span>
-    </div>
-</div>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const multDisplay = document.getElementById('multiplier');
+    const balDisplay = document.getElementById('user-balance');
+    const betBtn = document.getElementById('betBtn');
 
-<div class="main-view">
-    <div id="page-crash" class="page active">
-        <div class="game-window">
-            <canvas id="gridLayer"></canvas>
-            <canvas id="rocketLayer"></canvas>
-            <div class="mult-overlay"><div id="multiplier">x1.00</div></div>
-        </div>
-        <div class="history-bar" id="history"></div>
-        <button id="betBtn" class="btn-bet">Waiting for bets</button>
-        <div id="players" style="margin-top:15px"></div>
-    </div>
+    let gameState = 'WAIT';
+    let multiplier = 1.00;
+    let stars = [];
+    let isBetPlaced = false;
 
-    <div id="page-profile" class="page">
-        <div class="profile-card">
-            <h2>Профиль</h2>
-            <p>Ник: <b id="prof-nick"></b></p>
-            <input type="text" id="nick-input" placeholder="Новый ник...">
-            <button onclick="saveNick()" class="btn-bet">ИЗМЕНИТЬ</button>
-        </div>
-    </div>
-</div>
+    // Авто-логин через Телеграм
+    const user = tg.initDataUnsafe?.user;
+    socket.emit('join', { name: user ? user.first_name : "Игрок" });
 
-<div class="nav-tabs">
-    <div class="tab-item" onclick="switchTab('crash')" id="t-crash">🚀Crash</div>
-    <div class="tab-item" onclick="switchTab('profile')" id="t-profile">👤Profile</div>
-</div>
-
-<!-- АДМИН-ПАНЕЛЬ (СКРЫТАЯ) -->
-<div id="adminPanel" class="admin-panel">
-    <h2 style="color:var(--accent)">ADMIN PANEL</h2>
-    <input type="password" id="adminPass" placeholder="Пароль админа">
-    
-    <div class="admin-box">
-        <button class="btn-bet" onclick="sendAdmin('instantCrash')" style="background:var(--danger)">ВЗОРВАТЬ СЕЙЧАС</button>
-    </div>
-
-    <div class="admin-box">
-        <p>Следующий краш:</p>
-        <input type="number" id="nextCrash" placeholder="Напр: 2.5">
-        <button class="btn-bet" onclick="sendAdmin('setNextCrash')">УСТАНОВИТЬ</button>
-    </div>
-
-    <div class="admin-box">
-        <p>Начислить баланс:</p>
-        <input type="text" id="admTarget" placeholder="Ник игрока">
-        <input type="number" id="admAmount" placeholder="Сумма">
-        <button class="btn-bet" onclick="sendAdmin('addBalance')">ДОБАВИТЬ</button>
-    </div>
-    <p onclick="document.getElementById('adminPanel').style.display='none'" style="color:gray; cursor:pointer">Закрыть</p>
-</div>
-
-<div id="betModal" class="modal">
-    <div class="modal-box">
-        <h3>Сумма ставки</h3>
-        <input type="number" id="betAmt" value="10">
-        <button id="confirmBet" class="btn-bet">ПОСТАВИТЬ</button>
-        <p onclick="document.getElementById('betModal').style.display='none'" style="color:gray; cursor:pointer; margin-top:20px;">Назад</p>
-    </div>
-</div>
-
-<script>
-    const socket = io();
-    let myNick = "Player" + Math.floor(100 + Math.random() * 899);
-    document.getElementById('top-nick').innerText = myNick;
-    document.getElementById('prof-nick').innerText = myNick;
-    socket.emit('join', { name: myNick });
-
-    // Секретный вход в админку
-    let clicks = 0;
-    document.getElementById('balance-clicker').onclick = () => {
-        clicks++;
-        if(clicks >= 5) { document.getElementById('adminPanel').style.display = 'block'; clicks = 0; }
-    };
-
-    function sendAdmin(action) {
-        const pass = document.getElementById('adminPass').value;
-        const data = { password: pass, action: action };
-        if(action === 'setNextCrash') data.value = document.getElementById('nextCrash').value;
-        if(action === 'addBalance') { data.targetName = document.getElementById('admTarget').value; data.amount = document.getElementById('admAmount').value; }
-        socket.emit('adminCommand', data);
+    // Создаем звезды для фона
+    for(let i=0; i<50; i++) {
+        stars.push({ x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight, s: Math.random()*2 });
     }
 
-    function switchTab(id) {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById('page-' + id).classList.add('active');
-        if(id === 'crash') resize();
-    }
-
-    function saveNick() {
-        const val = document.getElementById('nick-input').value;
-        if(val) {
-            myNick = val; socket.emit('join', { name: val });
-            document.getElementById('top-nick').innerText = val;
-            document.getElementById('prof-nick').innerText = val;
-            switchTab('crash');
-        }
-    }
-
-    const rCan = document.getElementById('rocketLayer');
-    const gCan = document.getElementById('gridLayer');
-    const rCtx = rCan.getContext('2d');
-    const gCtx = gCan.getContext('2d');
-    let targetM = 1.00, visualM = 1.00, state = 'WAIT', isBet = false;
-
-    function resize() {
-        rCan.width = gCan.width = rCan.parentElement.clientWidth;
-        rCan.height = gCan.height = 260;
-        gCtx.clearRect(0,0,gCan.width,260); gCtx.strokeStyle = '#151515';
-        for(let x=0; x<gCan.width; x+=30) { gCtx.beginPath(); gCtx.moveTo(x,0); gCtx.lineTo(x,260); gCtx.stroke(); }
-        for(let y=0; y<260; y+=30) { gCtx.beginPath(); gCtx.moveTo(0,y); gCtx.lineTo(gCan.width,y); gCtx.stroke(); }
-    }
-
+    // --- ГРАФИКА (ТВОЯ ОРИГИНАЛЬНАЯ ЛОГИКА) ---
     function drawRocket(x, y, angle) {
-        rCtx.save(); rCtx.translate(x, y); rCtx.rotate(angle);
-        rCtx.fillStyle = '#ff9100'; let f = 7 + Math.random() * 8;
-        rCtx.beginPath(); rCtx.moveTo(-15, 0); rCtx.lineTo(-15-f, -4); rCtx.lineTo(-15-f, 4); rCtx.fill();
-        rCtx.fillStyle = '#fff'; rCtx.beginPath(); rCtx.ellipse(0, 0, 18, 7, 0, 0, Math.PI*2); rCtx.fill();
-        rCtx.fillStyle = '#c4ff00'; rCtx.beginPath(); rCtx.moveTo(12, -6); rCtx.quadraticCurveTo(24, 0, 12, 6); rCtx.fill();
-        rCtx.restore();
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        // Отрисовка пламени
+        ctx.fillStyle = '#ff9100';
+        ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(-35, -5); ctx.lineTo(-35, 5); ctx.fill();
+        // Корпус
+        ctx.fillStyle = '#efff';
+        ctx.beginPath(); ctx.ellipse(0, 0, 18, 7, 0, 0, Math.PI*2); ctx.fill();
+        // Окно
+        ctx.fillStyle = '#4affff';
+        ctx.beginPath(); ctx.arc(5, 0, 3, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
     }
 
     function loop() {
-        rCtx.clearRect(0,0,rCan.width,260);
-        if(state === 'FLY') {
-            visualM += (targetM - visualM) * 0.1;
-            let p = Math.min((visualM - 1) / 15, 1);
-            let x = 60 + (p * (rCan.width - 150));
-            let y = 220 - (Math.pow(p, 0.7) * 180);
-            let h = Math.sin(Date.now()/250) * 2;
-            rCtx.beginPath(); rCtx.strokeStyle = '#c4ff00'; rCtx.lineWidth = 3;
-            rCtx.moveTo(60, 220); rCtx.quadraticCurveTo(x/2+30, 220, x, y+h); rCtx.stroke();
-            drawRocket(x, y+h, -0.4);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Звезды
+        ctx.fillStyle = "#fff";
+        stars.forEach(s => {
+            ctx.beginPath(); ctx.arc(s.x, s.y, s.s, 0, Math.PI*2); ctx.fill();
+            if(gameState === 'FLY') s.x -= multiplier * 2;
+            if(s.x < 0) s.x = canvas.width;
+        });
+
+        if(gameState === 'FLY') {
+            const x = 80 + (Math.min(multiplier, 10) * 10);
+            const y = canvas.height - 100 - (Math.min(multiplier, 10) * 15);
+            drawRocket(x, y, -0.4);
         }
         requestAnimationFrame(loop);
     }
 
-    socket.on('tick', d => {
-        const m = document.getElementById('multiplier');
-        if(d.timer) { m.innerText = d.timer + 's'; m.style.color = '#fff'; }
-        else { targetM = parseFloat(d.multiplier); m.innerText = 'x' + d.multiplier; m.style.color = '#c4ff00'; }
+    function resize() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+    }
+
+    // --- СОБЫТИЯ СЕРВЕРА ---
+    socket.on('tick', (data) => {
+        multiplier = parseFloat(data.multiplier);
+        multDisplay.innerText = data.multiplier + 'x';
     });
 
-    socket.on('gameState', d => {
-        state = d.state;
-        const b = document.getElementById('betBtn');
-        if(state === 'WAIT') { b.innerText = 'Waiting for bets'; b.disabled = false; isBet = false; document.getElementById('players').innerHTML = ''; }
-        else if(state === 'FLY') { if(isBet) { b.innerText = 'CASH OUT'; b.disabled = false; } else { b.innerText = 'Waiting...'; b.disabled = true; } }
-        else if(state === 'CRASH') { b.innerText = 'CRASHED'; b.disabled = true; updateHist(d.history); }
-    });
-
-    socket.on('updateBalance', d => document.getElementById('user-balance').innerText = d.balance.toFixed(2));
-
-    socket.on('playerAction', d => {
-        const list = document.getElementById('players');
-        if(d.type === 'bet') {
-            const row = document.createElement('div'); row.id = 'p-' + d.name;
-            row.style.display = 'flex'; row.style.justifyContent = 'space-between';
-            row.innerHTML = `<span>👤 ${d.name} <small style="color:var(--blue)">💎 ${d.bet}</small></span><span class="p-res"></span>`;
-            list.prepend(row);
+    socket.on('gameState', (data) => {
+        gameState = data.state;
+        if(gameState === 'WAIT') {
+            multDisplay.style.color = "#fff";
+            betBtn.disabled = false;
+            betBtn.innerText = "СДЕЛАТЬ СТАВКУ";
+            betBtn.style.background = "#00ff88";
+            isBetPlaced = false;
+        } else if(gameState === 'FLY') {
+            if(isBetPlaced) {
+                betBtn.innerText = "ЗАБРАТЬ";
+                betBtn.style.background = "#ffcc00";
+                betBtn.disabled = false;
+            } else {
+                betBtn.innerText = "ИДЕТ ПОЛЕТ";
+                betBtn.disabled = true;
+            }
+        } else if(gameState === 'CRASH') {
+            multDisplay.style.color = "#ff4444";
+            betBtn.innerText = "CRASHED";
+            betBtn.disabled = true;
+            if(data.history) updateHistory(data.history);
         }
-        if(d.type === 'cashout') {
-            const target = document.getElementById('p-' + d.name);
-            if(target) target.querySelector('.p-res').innerText = 'x' + d.mult;
-        }
     });
 
-    document.getElementById('betBtn').onclick = () => {
-        if(state === 'WAIT' && !isBet) document.getElementById('betModal').style.display='flex';
-        else if(state === 'FLY' && isBet) { socket.emit('cashOut'); isBet = false; }
-    };
+    socket.on('updateBalance', (data) => {
+        balDisplay.innerText = data.balance.toFixed(2);
+    });
 
-    document.getElementById('confirmBet').onclick = () => {
-        socket.emit('placeBet', { bet: document.getElementById('betAmt').value });
-        isBet = true; document.getElementById('betBtn').innerText = 'BET PLACED';
-        document.getElementById('betBtn').disabled = true; document.getElementById('betModal').style.display='none';
-    };
-
-    function updateHist(list) {
-        const h = document.getElementById('history'); h.innerHTML = '';
-        list.slice(0, 6).forEach(v => {
-            const i = document.createElement('div'); i.className = 'h-item'; i.innerText = v + 'x'; h.appendChild(i);
+    function updateHistory(list) {
+        const histDiv = document.getElementById('history');
+        histDiv.innerHTML = '';
+        list.forEach(m => {
+            const item = document.createElement('div');
+            item.className = 'h-item';
+            item.innerText = m + 'x';
+            histDiv.appendChild(item);
         });
     }
 
+    // --- УПРАВЛЕНИЕ ---
+    betBtn.onclick = () => {
+        if(gameState === 'WAIT' && !isBetPlaced) {
+            const amt = document.getElementById('bet-input').value;
+            socket.emit('placeBet', { bet: amt });
+            isBetPlaced = true;
+            betBtn.innerText = "СТАВКА ПРИНЯТА";
+            betBtn.disabled = true;
+        } else if(gameState === 'FLY' && isBetPlaced) {
+            socket.emit('cashOut');
+            isBetPlaced = false;
+            betBtn.disabled = true;
+        }
+    };
+
+    window.addEventListener('resize', resize);
     window.onload = () => { resize(); loop(); };
 </script>
+
 </body>
 </html>
